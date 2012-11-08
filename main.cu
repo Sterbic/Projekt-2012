@@ -6,6 +6,10 @@
 
 #define VERSION "0.2.0"
 
+#define THREADS_PER_BLOCK 512
+#define BLOCKS_PER_GRID 512
+#define ALPHA 4
+
 typedef struct {
     int match;
     int mismatch;
@@ -17,9 +21,19 @@ typedef struct {
     int score;
     int row;
     int column;
-} entry;
+} alignmentScore;
 
-__global__ void kernel() {
+typedef struct {
+	int H;
+	int E;
+	int F;
+} element;
+
+__global__ void kernel1(int dk) {
+
+}
+
+__global__ void kernel2(int dk) {
 
 }
 
@@ -67,12 +81,41 @@ int main(int argc, char *argv[]) {
 
     printf("Starting alignment process... ");
 
+    element *matrix;
+    int matrixSize = sizeof(element) * (first.getLength() + 1) * (second.getLength() + 1);
+    cudaMalloc(&matrix, matrixSize);
+    cudaMemset(matrix, 0, matrixSize);
+
+    alignmentScore max;
+    max.score = 0;
+
+    alignmentScore *blockScores;
+    int blockScoreSize = sizeof(alignmentScore) * BLOCKS_PER_GRID;
+    blockScores = (alignmentScore *)malloc(blockScoreSize);
+    alignmentScore *devBlockScore;
+    cudaMalloc(&devBlockScore, blockScoreSize);
+    cudaMemset(devBlockScore, 0, blockScoreSize);
+
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
 
-    kernel<<<10, 10>>>();
+    int D = BLOCKS_PER_GRID + first.getLength() / (ALPHA * THREADS_PER_BLOCK) - 1;
+    for(int dk = 0; dk < D + BLOCKS_PER_GRID; dk++) {
+    	kernel1<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dk);
+    	cudaDeviceSynchronize();
+    	kernel2<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dk);
+
+    	cudaMemcpy(blockScores, devBlockScore, blockScoreSize, cudaMemcpyDeviceToHost);
+    	for(int i = 0; i < BLOCKS_PER_GRID; i++) {
+    		if(max.score < blockScores[i].score) {
+    			max.score = blockScores[i].score;
+    			max.column = blockScores[i].column;
+    			max.row = blockScores[i].row;
+    		}
+    	}
+    }
     
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
@@ -82,6 +125,13 @@ int main(int argc, char *argv[]) {
     float time;
     cudaEventElapsedTime(&time, start, stop);
     printf("Kernel executed in %f s\n", time / 1000);
+
+    printf("\nAlignment score: %d at [%d,%d]\n", max.score, max.row, max.column);
+
+    cudaFree(matrix);
+    cudaFree(devBlockScore);
+
+    free(blockScores);
 
     return 0;
 }
