@@ -6,9 +6,9 @@
 
 #define VERSION "0.2.0"
 
-#define THREADS_PER_BLOCK 512
-#define BLOCKS_PER_GRID 512
-#define ALPHA 4
+#define THREADS_PER_BLOCK 32
+#define BLOCKS_PER_GRID 32
+#define ALPHA 2
 
 typedef struct {
     int match;
@@ -29,12 +29,133 @@ typedef struct {
 	int F;
 } element;
 
-__global__ void kernel1(int dk) {
-
+__device__ int max(int a, int b) {
+	if(a > b) return a;
+	return b;
 }
 
-__global__ void kernel2(int dk) {
+__global__ void kernel1(int dk, element *matrix,char *first,
+		int firstLength, char *second, int secondLength, scoring values,
+		alignmentScore *blockScore) {
+	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
+	blockMax[threadIdx.x].score = 0;
 
+	int i = blockIdx.x * ALPHA * (THREADS_PER_BLOCK + threadIdx.x);
+	int j = secondLength / BLOCKS_PER_GRID * (dk - blockIdx.x) - threadIdx.x;
+
+	if(j < 0) {
+		i -= ALPHA * BLOCKS_PER_GRID * THREADS_PER_BLOCK;
+		j = secondLength - j;
+	}
+
+	for(int innerDiagonal = 0; innerDiagonal < THREADS_PER_BLOCK - 1; innerDiagonal++) {
+		if(i >= 0 && i < firstLength) {
+			for(int a = 0; a < ALPHA; a++) {
+				element *current = matrix + j + 1 + (i + a + 1) * (secondLength + 1);
+				element *left = matrix + j + (i + a + 1) * (secondLength + 1);
+				element *up = matrix + j + 1 + (i + a) * (secondLength + 1);
+				element *diagonal = matrix + j + (i + a) * (secondLength + 1);
+
+				int matchMissmatch = values.mismatch;
+				if(first[i + a] == second[j]) matchMissmatch = values.match;
+
+				current->E = max(left->E + values.extension, left->H + values.first);
+				current->F = max(up->F + values.extension, up->H + values.first);
+				current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
+
+				if(current->H > blockMax[threadIdx.x].score) {
+					blockMax[threadIdx.x].score = current->H;
+					blockMax[threadIdx.x].column = j + 1;
+					blockMax[threadIdx.x].row = i + 1;
+				}
+			}
+		}
+
+		j++;
+
+		if(j == secondLength) {
+			j = 0;
+			i += BLOCKS_PER_GRID * ALPHA * THREADS_PER_BLOCK;
+		}
+
+		__syncthreads();
+	}
+
+	int index = blockDim.x / 2;
+	while(i != 0) {
+		if(threadIdx.x < index) {
+			blockMax[threadIdx.x] += blockMax[threadIdx.x + index];
+		}
+
+		__syncthreads();
+		index /= 2;
+	}
+
+	if(threadIdx.x == 0) {
+		blockScore[blockIdx.x] = blockMax[0];
+	}
+}
+
+__global__ void kernel2(int dk, element *matrix,char *first,
+		int firstLength, char *second, int secondLength, scoring values,
+		alignmentScore *blockScore) {
+	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
+	blockMax[threadIdx.x].score = 0;
+
+	int i = blockIdx.x * ALPHA * (THREADS_PER_BLOCK + threadIdx.x);
+	int j = secondLength / BLOCKS_PER_GRID * (dk - blockIdx.x) - threadIdx.x;
+
+	if(j < 0) {
+		i -= ALPHA * BLOCKS_PER_GRID * THREADS_PER_BLOCK;
+		j = secondLength - j;
+	}
+
+	for(int innerDiagonal = THREADS_PER_BLOCK; innerDiagonal < secondLength / BLOCKS_PER_GRID; innerDiagonal++) {
+		if(i >= 0 && i < firstLength) {
+			for(int a = 0; a < ALPHA; a++) {
+				element *current = matrix + j + 1 + (i + a + 1) * (secondLength + 1);
+				element *left = matrix + j + (i + a + 1) * (secondLength + 1);
+				element *up = matrix + j + 1 + (i + a) * (secondLength + 1);
+				element *diagonal = matrix + j + (i + a) * (secondLength + 1);
+
+				int matchMissmatch = values.mismatch;
+				if(first[i + a] == second[j]) matchMissmatch = values.match;
+
+				current->E = max(left->E + values.extension, left->H + values.first);
+				current->F = max(up->F + values.extension, up->H + values.first);
+				current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
+
+				if(current->H > blockMax[threadIdx.x].score) {
+					blockMax[threadIdx.x].score = current->H;
+					blockMax[threadIdx.x].column = j + 1;
+					blockMax[threadIdx.x].row = i + 1;
+				}
+			}
+		}
+
+		j++;
+
+		if(j == secondLength) {
+			j = 0;
+			i += BLOCKS_PER_GRID * ALPHA * THREADS_PER_BLOCK;
+		}
+
+		__syncthreads();
+	}
+
+	int index = blockDim.x / 2;
+	while(i != 0) {
+		if(threadIdx.x < index) {
+			blockMax[threadIdx.x] += blockMax[threadIdx.x + index];
+		}
+
+		__syncthreads();
+		index /= 2;
+	}
+
+	if(threadIdx.x == 0) {
+		blockScore[blockIdx.x] = blockMax[0];
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -96,6 +217,14 @@ int main(int argc, char *argv[]) {
     cudaMalloc(&devBlockScore, blockScoreSize);
     cudaMemset(devBlockScore, 0, blockScoreSize);
 
+    char *devFirst;
+    cudaMalloc(&devFirst, first.getLength() * sizeof(char));
+    cudaMemcpy(devFirst, first.getSequence(), first.getLength() * sizeof(char), cudaMemcpyHostToDevice);
+
+    char *devSecond;
+    cudaMalloc(&devSecond, second.getLength() * sizeof(char));
+    cudaMemcpy(devSecond, second.getSequence(), second.getLength() * sizeof(char), cudaMemcpyHostToDevice);
+
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
@@ -103,9 +232,27 @@ int main(int argc, char *argv[]) {
 
     int D = BLOCKS_PER_GRID + first.getLength() / (ALPHA * THREADS_PER_BLOCK) - 1;
     for(int dk = 0; dk < D + BLOCKS_PER_GRID; dk++) {
-    	kernel1<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dk);
+    	kernel1<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
+    			dk,
+    			matrix,
+    			devFirst,
+    			first.getLength(),
+    			devSecond,
+    			second.getLength(),
+    			values,
+    			devBlockScore
+    			);
     	cudaDeviceSynchronize();
-    	kernel2<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dk);
+    	kernel2<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
+    			dk,
+    			matrix,
+    			devFirst,
+    			first.getLength(),
+    			devSecond,
+    			second.getLength(),
+    			values,
+    			devBlockScore
+    			);
 
     	cudaMemcpy(blockScores, devBlockScore, blockScoreSize, cudaMemcpyDeviceToHost);
     	for(int i = 0; i < BLOCKS_PER_GRID; i++) {
@@ -130,6 +277,8 @@ int main(int argc, char *argv[]) {
 
     cudaFree(matrix);
     cudaFree(devBlockScore);
+    cudaFree(devFirst);
+    cudaFree(devSecond);
 
     free(blockScores);
 
