@@ -36,13 +36,13 @@ int main(int argc, char *argv[]) {
 
     printf("Loading input sequences... ");
     if(!first.load() || !second.load()) {
+
       printf("ERROR\nAn error has occured while loading input sequences!\n\n");
       exit(-1);
     }
     else {
       printf("DONE\n\n");
     }
-
     printf("First sequence:\n%s\n\n", first.getSequenceName());
     printf("Second sequence:\n%s\n\n", second.getSequenceName());
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     values.first = atoi(argv[5]);
     values.extension = atoi(argv[6]);
 
-	if(values.match < 1 || values.mismatch > -1 || values.insertion > -1 || values.deletion > -1) {
+	if(values.match < 1 || values.mismatch > -1 || values.first > -1 || values.extension > -1) {
 		printf("ERROR\nOne or more scoring values were not usable!\n\n");
 		exit(-1);
 	}
@@ -65,23 +65,23 @@ int main(int argc, char *argv[]) {
 		printf("	>Gap extension: %d\n\n", values.extension);
 	}
 
-	printf("Starting alignment process... ");
+    printf("Starting alignment process... ");
 
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, 0);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
 
-	kernel<<<10, 10>>>();
+    kernel<<<10, 10>>>();
+    
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    
+    printf("DONE\n\n");
 
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-
-	printf("DONE\n\n");
-
-	float time;
-	cudaEventElapsedTime(&time, start, stop);
-	printf("Kernel executed in %f s\n", time / 1000);
+    float time;
+    cudaEventElapsedTime(&time, start, stop);
+    printf("Kernel executed in %f s\n", time / 1000);
 
     return 0;
 }
