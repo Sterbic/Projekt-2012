@@ -42,7 +42,7 @@ bool FASTAsequence::load() {
 
 	char c[300 + 1];
 	memset(c, 0, 301);
-	fgets(c, 200, f);
+	fgets(c, 300, f);
 
 	if(c[0] != '>') return false;
 

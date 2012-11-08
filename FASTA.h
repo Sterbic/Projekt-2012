@@ -13,7 +13,7 @@ private:
 	char *fileName;
 	char *sequenceName;
 	char *sequence;
-	long length;
+	int length;
 
 public:
 	FASTAsequence(char *fileName);
