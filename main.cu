@@ -240,7 +240,8 @@ int main(int argc, char *argv[]) {
     			values,
     			devBlockScore
     			);
-    	cudaDeviceSynchronize();
+        printf("\nLaunch %d, error: %s\n", dk, cudaGetErrorString(cudaDeviceSynchronize()));
+
     	kernel2<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
     			dk,
     			matrix,
@@ -279,6 +280,8 @@ int main(int argc, char *argv[]) {
     cudaFree(devSecond);
 
     free(blockScores);
+
+    printf("\n%s\n", cudaGetErrorString(cudaGetLastError()));
 
     return 0;
 }
