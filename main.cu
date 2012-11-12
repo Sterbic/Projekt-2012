@@ -7,9 +7,9 @@
 
 #define VERSION "0.2.0"
 
-#define THREADS_PER_BLOCK 32
-#define BLOCKS_PER_GRID 32
-#define ALPHA 2
+#define THREADS_PER_BLOCK 9
+#define BLOCKS_PER_GRID 1
+#define ALPHA 1
 
 typedef struct {
     int match;
@@ -33,18 +33,22 @@ typedef struct {
 __global__ void shortPhase(int dk, element *matrix,char *first,
 	int firstLength, char *second, int secondLength, scoring values,
 	alignmentScore *blockScore) {
+    
+    printf("in short phase thread %d", threadIdx.x);
+
 	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
 	blockMax[threadIdx.x].score = 0;
 
 	int i = blockIdx.x * ALPHA * (THREADS_PER_BLOCK + threadIdx.x);
 	int j = secondLength / BLOCKS_PER_GRID * (dk - blockIdx.x) - threadIdx.x;
+	printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
 
 	if(j < 0) {
 		i -= ALPHA * BLOCKS_PER_GRID * THREADS_PER_BLOCK;
 		j = secondLength - j;
 	}
 
-	for(int innerDiagonal = 0; innerDiagonal < THREADS_PER_BLOCK - 1; innerDiagonal++) {
+	for(int innerDiagonal = 0; innerDiagonal < THREADS_PER_BLOCK; innerDiagonal++) {
 		if(i >= 0 && i < firstLength) {
 			for(int a = 0; a < ALPHA; a++) {
 				element *current = matrix + j + 1 + (i + a + 1) * (secondLength + 1);
@@ -173,9 +177,9 @@ int main(int argc, char *argv[]) {
       printf("ERROR\nAn error has occured while loading input sequences!\n\n");
       exit(-1);
     }
-    else {
+    else
       printf("DONE\n\n");
-    }
+	
     printf("First sequence:\n%s\n\n", first.getSequenceName());
     printf("Second sequence:\n%s\n\n", second.getSequenceName());
 
@@ -211,7 +215,8 @@ int main(int argc, char *argv[]) {
     alignmentScore *blockScores;
     int blockScoreSize = sizeof(alignmentScore) * BLOCKS_PER_GRID;
     blockScores = (alignmentScore *)malloc(blockScoreSize);
-    alignmentScore *devBlockScore;
+    
+	alignmentScore *devBlockScore;
     cudaMalloc(&devBlockScore, blockScoreSize);
     cudaMemset(devBlockScore, 0, blockScoreSize);
 
@@ -223,12 +228,13 @@ int main(int argc, char *argv[]) {
     cudaMalloc(&devSecond, second.getLength() * sizeof(char));
     cudaMemcpy(devSecond, second.getSequence(), second.getLength() * sizeof(char), cudaMemcpyHostToDevice);
 
+	int D = BLOCKS_PER_GRID + first.getLength() / (ALPHA * THREADS_PER_BLOCK) - 1;
+	
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
-
-    int D = BLOCKS_PER_GRID + first.getLength() / (ALPHA * THREADS_PER_BLOCK) - 1;
+    
     for(int dk = 0; dk < D + BLOCKS_PER_GRID; dk++) {
     	shortPhase<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
     			dk,
