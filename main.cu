@@ -30,9 +30,9 @@ typedef struct {
 	int F;
 } element;
 
-__global__ void kernel1(int dk, element *matrix,char *first,
-		int firstLength, char *second, int secondLength, scoring values,
-		alignmentScore *blockScore) {
+__global__ void shortPhase(int dk, element *matrix,char *first,
+	int firstLength, char *second, int secondLength, scoring values,
+	alignmentScore *blockScore) {
 	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
 	blockMax[threadIdx.x].score = 0;
 
@@ -93,7 +93,7 @@ __global__ void kernel1(int dk, element *matrix,char *first,
 	}
 }
 
-__global__ void kernel2(int dk, element *matrix,char *first,
+__global__ void longPhase(int dk, element *matrix,char *first,
 		int firstLength, char *second, int secondLength, scoring values,
 		alignmentScore *blockScore) {
 	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
 
     int D = BLOCKS_PER_GRID + first.getLength() / (ALPHA * THREADS_PER_BLOCK) - 1;
     for(int dk = 0; dk < D + BLOCKS_PER_GRID; dk++) {
-    	kernel1<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
+    	shortPhase<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
     			dk,
     			matrix,
     			devFirst,
@@ -240,9 +240,10 @@ int main(int argc, char *argv[]) {
     			values,
     			devBlockScore
     			);
-        printf("\nLaunch %d, error: %s\n", dk, cudaGetErrorString(cudaDeviceSynchronize()));
 
-    	kernel2<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
+        printf("\nLaunch %d, error: %s\n", dk, cudaGetErrorString(cudaDeviceSynchronize()));
+    	
+    	longPhase<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
     			dk,
     			matrix,
     			devFirst,
