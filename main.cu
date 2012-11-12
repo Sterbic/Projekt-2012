@@ -9,7 +9,7 @@
 
 #define THREADS_PER_BLOCK 9
 #define BLOCKS_PER_GRID 1
-#define ALPHA 1
+#define ALPHA 2
 
 typedef struct {
     int match;
@@ -34,12 +34,12 @@ __global__ void shortPhase(int dk, element *matrix,char *first,
 	int firstLength, char *second, int secondLength, scoring values,
 	alignmentScore *blockScore) {
     
-    printf("in short phase thread %d", threadIdx.x);
+    printf("in short phase thread %d\n", threadIdx.x);
 
 	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
 	blockMax[threadIdx.x].score = 0;
 
-	int i = blockIdx.x * ALPHA * (THREADS_PER_BLOCK + threadIdx.x);
+	int i = ALPHA * (blockIdx.x * THREADS_PER_BLOCK + threadIdx.x);
 	int j = secondLength / BLOCKS_PER_GRID * (dk - blockIdx.x) - threadIdx.x;
 	printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
 
@@ -103,7 +103,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
 	blockMax[threadIdx.x].score = 0;
 
-	int i = blockIdx.x * ALPHA * (THREADS_PER_BLOCK + threadIdx.x);
+	int i = ALPHA * (blockIdx.x * THREADS_PER_BLOCK + threadIdx.x);
 	int j = secondLength / BLOCKS_PER_GRID * (dk - blockIdx.x) - threadIdx.x;
 
 	if(j < 0) {
