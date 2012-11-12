@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <cuda.h>
 
 #include "FASTA.h"
 
@@ -29,6 +28,11 @@ typedef struct {
 	int E;
 	int F;
 } element;
+
+__device__ int max(int a, int b) {
+	if(a > b) return a;
+	return b;
+}
 
 __global__ void kernel1(int dk, element *matrix,char *first,
 		int firstLength, char *second, int secondLength, scoring values,
@@ -80,8 +84,8 @@ __global__ void kernel1(int dk, element *matrix,char *first,
 	int index = blockDim.x / 2;
 	while(i != 0) {
 		if(threadIdx.x < index) {
-			if(blockMax[threadIdx.x].score < blockMax[threadIdx.x + index].score)
-				blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
+		    if(blockMax[])
+			blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
 		}
 
 		__syncthreads();
@@ -143,8 +147,7 @@ __global__ void kernel2(int dk, element *matrix,char *first,
 	int index = blockDim.x / 2;
 	while(i != 0) {
 		if(threadIdx.x < index) {
-			if(blockMax[threadIdx.x].score < blockMax[threadIdx.x + index].score)
-				blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
+			blockMax[threadIdx.x] += blockMax[threadIdx.x + index];
 		}
 
 		__syncthreads();
