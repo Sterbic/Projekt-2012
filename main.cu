@@ -5,11 +5,11 @@
 
 #include "FASTA.h"
 
-#define VERSION "0.2.0"
+#define VERSION "0.2.5"
 
 #define THREADS_PER_BLOCK 9
 #define BLOCKS_PER_GRID 1
-#define ALPHA 2
+#define ALPHA 1
 
 typedef struct {
     int match;
@@ -30,11 +30,19 @@ typedef struct {
 	int F;
 } element;
 
-__global__ void shortPhase(int dk, element *matrix,char *first,
+__global__ void shortPhase(int dk, element *matrix, char *first,
 	int firstLength, char *second, int secondLength, scoring values,
 	alignmentScore *blockScore) {
-    
+	printf("string %d %s\n", firstLength, first);
     printf("in short phase thread %d\n", threadIdx.x);
+    if(threadIdx.x == 0) {
+    //	printf("got arguments:\n dk: %d\nfirst seq of length %d: %s\n", dk, firstLength, first);
+    //	printf("second seq of length %d: %s\n", secondLength, second);
+    //	printf("scoring: %d, %d, %d, %d\n", values.match, values.mismatch, values.first, values.extension);
+    	//printf("blockScore 0 score: %d\n", blockScore[0].score);
+    //	printf("elements matrix: [0,0] = %d, [2,2] = %d, [5,7] = %d\n", matrix[0].H,
+    	//		matrix[3 + (firstLength + 1) * 2].H, matrix[7 + (firstLength + 1) * 5].H);
+    }
 
 	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
 	blockMax[threadIdx.x].score = 0;
@@ -106,11 +114,6 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 	int i = ALPHA * (blockIdx.x * THREADS_PER_BLOCK + threadIdx.x);
 	int j = secondLength / BLOCKS_PER_GRID * (dk - blockIdx.x) - threadIdx.x;
 
-	if(j < 0) {
-		i -= ALPHA * BLOCKS_PER_GRID * THREADS_PER_BLOCK;
-		j = secondLength - j;
-	}
-
 	for(int innerDiagonal = THREADS_PER_BLOCK; innerDiagonal < secondLength / BLOCKS_PER_GRID; innerDiagonal++) {
 		if(i >= 0 && i < firstLength) {
 			for(int a = 0; a < ALPHA; a++) {
@@ -135,11 +138,6 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 		}
 
 		j++;
-
-		if(j == secondLength) {
-			j = 0;
-			i += BLOCKS_PER_GRID * ALPHA * THREADS_PER_BLOCK;
-		}
 
 		__syncthreads();
 	}
@@ -180,8 +178,8 @@ int main(int argc, char *argv[]) {
     else
       printf("DONE\n\n");
 	
-    printf("First sequence:\n%s\n\n", first.getSequenceName());
-    printf("Second sequence:\n%s\n\n", second.getSequenceName());
+    printf("First sequence of length %d:\n%s\n\n", first.getLength(), first.getSequenceName());
+    printf("Second sequence of length %d:\n%s\n\n", second.getLength(), second.getSequenceName());
 
     scoring values;
     printf("Initializing scoring values... ");
@@ -235,6 +233,7 @@ int main(int argc, char *argv[]) {
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
     
+    printf("> %s\n> %s\n", first.getSequence(), second.getSequence());
     for(int dk = 0; dk < D + BLOCKS_PER_GRID; dk++) {
     	shortPhase<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
     			dk,

@@ -42,7 +42,7 @@ bool FASTAsequence::load() {
 
 	char c[300 + 1];
 	memset(c, 0, 301);
-	fgets(c, 300, f);
+	fgets(c, 200, f);
 
 	if(c[0] != '>') return false;
 
@@ -54,16 +54,16 @@ bool FASTAsequence::load() {
 		sequenceName[i] = c[i + 1];
 	}
 
-
 	long current = size + 1;
 	fseek(f, 0L, 2);
 	long seqLength = ftell(f) - current;
 
 	char *seq = (char *)malloc(seqLength);
-	memset(seq, 0, seqLength);
 	if(seq == NULL) return false;
+	memset(seq, 0, seqLength);
 
-	fseek(f, current, 1);
+	fseek(f, 0L, 0);
+	fgets(c, 300, f);
 
 	int i = 0;
 	char base = 0;
@@ -72,9 +72,9 @@ bool FASTAsequence::load() {
 		seq[i++] = base;
 	}
 
-	fclose(f);
-
 	length = i;
+
+	fclose(f);
 
 	seq = (char *)realloc(seq, length + 1);
 	if(seq == NULL) return false;
