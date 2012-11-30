@@ -13,7 +13,9 @@ private:
 	char *fileName;
 	char *sequenceName;
 	char *sequence;
-	int length;
+	long length;
+
+	bool doPadding(int padTo, char withSymb);
 
 public:
 	FASTAsequence(char *fileName);
@@ -28,6 +30,9 @@ public:
 
 	bool load();
 
+	bool doPaddingForColumns(int BLOCKS_PER_GRID);
+
+	bool doPaddingForRows(int ALPHA);
 };
 
 #endif /* FASTA_H_ */

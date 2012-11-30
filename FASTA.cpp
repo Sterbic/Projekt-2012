@@ -83,3 +83,31 @@ bool FASTAsequence::load() {
 	return true;
 }
 
+bool FASTAsequence::doPadding(int padTo, char withSymb) {
+	int C = (length + padTo - 1) / padTo;
+	if(length % C == 0)
+		return true;
+
+	int padding = C - length % C;
+
+	sequence = (char *)realloc(sequence, length + padding * sizeof(char));
+	if(sequence == NULL)
+		return false;
+
+	for(int i = 0; i < padding; i++) {
+		sequence[length + i] = withSymb;
+	}
+	sequence[length + padding] = '\0';
+
+	length += padding;
+
+	return true;
+}
+
+bool FASTAsequence::doPaddingForColumns(int BLOCKS_PER_GRID) {
+	return doPadding(BLOCKS_PER_GRID, '#');
+}
+
+bool FASTAsequence::doPaddingForRows(int ALPHA) {
+	return doPadding(ALPHA, '$');
+}
