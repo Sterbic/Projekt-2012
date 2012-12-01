@@ -39,7 +39,9 @@ public:
     float getElapsedTimeMillis();
 };
 
-void getLaunchConfig(int shorterSeqLength);
+LaunchConfig getLaunchConfig(int shorterSeqLength);
+
+cudaDeviceProp bestDevice(void);
 
 void exitWithMsg(const char *msg, int exitCode);
 

@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <driver_types.h>
 #include <cuda_runtime_api.h>
 
@@ -69,4 +70,48 @@ float cudaTimer::getElapsedTimeMillis() {
 	float time;
 	cudaEventElapsedTime(&time, _start, _stop);
 	return time;
+}
+
+LaunchConfig getLaunchConfig(int shorterSeqLength, int maxThreads) {
+	LaunchConfig config;
+	
+	config.threads = maxThreads / 2;
+	
+	 if (config.threads * config.blocks * 2 > shorterSeqLength) {
+        config.blocks = (int) ((float) (shorterSeqLength) / (config.threads * 2));
+    }
+
+    if (config.blocks == 0) {
+        config.blocks = 1;
+        config.threads = shorterSeqLength / 2;
+    }
+}
+
+cudaDeviceProp bestDevice(void) {
+	int numOfDevices, bestDeviceNumber;
+	cudaDeviceProp bestDeviceProps;
+	
+	safeAPIcall(cudaGetDeviceCount(numOfDevices));
+	
+	if (numOfDevices > 1) {
+		int maxCores = 0;
+		for (int i = 0; i < numOfDevices; ++i) {
+			cudaDeviceProp currentDeviceProps;
+			cudaGetDeviceProperties(&currentDeviceProps, i);
+			
+			int deviceCores = _ConvertSMVer2Cores(currentDeviceProps.major, currentDeviceProps.minor) * currentDeviceProps.multiProcessorCount;
+			if (maxCores < deviceCores) {
+				maxCores = deviceCores;
+				bestDeviceNumber = i;
+				bestDeviceProps = currentDeviceProps;
+			}
+		}
+		cudaSetDevice(bestDeviceNumber);
+	}
+	else if (numOfDevices == 1){
+		cudaGetDeviceProperties(&bestDeviceProps, 0);
+	}
+	
+	return bestDeviceProps;
+	
 }
