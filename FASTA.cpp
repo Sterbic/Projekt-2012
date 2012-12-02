@@ -90,7 +90,7 @@ bool FASTAsequence::doPadding(int padTo, char withSymb) {
 
 	int padding = C - length % C;
 
-	sequence = (char *)realloc(sequence, length + padding * sizeof(char));
+	sequence = (char *)realloc(sequence, length + padding * sizeof(char) + 1);
 	if(sequence == NULL)
 		return false;
 

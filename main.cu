@@ -201,8 +201,8 @@ int main(int argc, char *argv[]) {
     else
     	printf("DONE\n\n");
 	
-    printf("First sequence of length %d:\n%s\n", first.getLength(), first.getSequenceName());
-    printf("Second sequence of length %d:\n%s\n", second.getLength(), second.getSequenceName());
+    printf("First sequence of length %d:\n%s\n\n", first.getLength(), first.getSequenceName());
+    printf("Second sequence of length %d:\n%s\n\n", second.getLength(), second.getSequenceName());
 
     if(second.getLength() > first.getLength()) {
     	FASTAsequence *temp = pFirst;
