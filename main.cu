@@ -7,17 +7,9 @@
 #include "FASTA.h"
 #include "SWutils.h"
 
-#define VERSION "0.2.6"
+#define VERSION "0.4.0"
 
-#define THREADS_PER_BLOCK 32
-#define BLOCKS_PER_GRID 16
 #define ALPHA 4
-
-typedef struct {
-    int score;
-    int row;
-    int column;
-} alignmentScore;
 
 typedef struct {
 	int H;
@@ -31,22 +23,22 @@ __device__ void getSequenceBuffer(int i, char *sequence, char *seqBuffer) {
 }
 
 __device__ int getColumn(int secondLength) {
-	return secondLength / BLOCKS_PER_GRID * (BLOCKS_PER_GRID - blockIdx.x - 1) - threadIdx.x;
+	return secondLength / gridDim.x * (gridDim.x - blockIdx.x - 1) - threadIdx.x;
 }
 
 __device__ int getRow(int dk) {
-	return (dk + blockIdx.x - BLOCKS_PER_GRID + 1) *
-			THREADS_PER_BLOCK * ALPHA + threadIdx.x * ALPHA;
+	return (dk + blockIdx.x - gridDim.x + 1) *
+			blockDim.x * ALPHA + threadIdx.x * ALPHA;
 }
 
 __device__ void getBlockMax(alignmentScore *blockMax, alignmentScore *blockScore) {
 	int nearestPowof2 = 1;
-		while (nearestPowof2 < THREADS_PER_BLOCK)
+		while (nearestPowof2 < blockDim.x)
 			nearestPowof2 <<= 1;
 
 		int index = nearestPowof2 / 2;
 		while(index != 0) {
-			if(threadIdx.x < index && threadIdx.x + index < THREADS_PER_BLOCK) {
+			if(threadIdx.x < index && threadIdx.x + index < blockDim.x) {
 				if(blockMax[threadIdx.x].score <= blockMax[threadIdx.x + index].score)
 					blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
 			}
@@ -64,14 +56,14 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 	int firstLength, char *second, int secondLength, scoring values,
 	alignmentScore *blockScore) {
 
-	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
+	extern __shared__ alignmentScore blockMax[];
 	blockMax[threadIdx.x].score = -1;
 
 	int i = getRow(dk);
 	int j = getColumn(secondLength);
 
 	if(j < 0) {
-		i -= ALPHA * BLOCKS_PER_GRID * THREADS_PER_BLOCK;
+		i -= ALPHA * gridDim.x * blockDim.x;
 		j += secondLength;
 	}
 
@@ -81,7 +73,7 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 
 	__syncthreads();
 
-	for(int innerDiagonal = 0; innerDiagonal < THREADS_PER_BLOCK; innerDiagonal++) {
+	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
 		element *current = &matrix[j + 1 + (i + 1) * cols];
 		element *left = current - 1;
 		element *up = current - cols;
@@ -123,7 +115,7 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 
 		if(j == secondLength) {
 			j = 0;
-			i += BLOCKS_PER_GRID * ALPHA * THREADS_PER_BLOCK;
+			i += gridDim.x * ALPHA * blockDim.x;
 			getSequenceBuffer(i, first, seqBuffer);
 		}
 
@@ -136,13 +128,13 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 		int firstLength, char *second, int secondLength, scoring values,
 		alignmentScore *blockScore) {
 
-	__shared__ alignmentScore blockMax[THREADS_PER_BLOCK];
+	extern __shared__ alignmentScore blockMax[];
 	blockMax[threadIdx.x].score = -1;
 
-	int C = secondLength / BLOCKS_PER_GRID;
+	int C = secondLength / gridDim.x;
 
 	int i = getRow(dk);
-	int j = getColumn(secondLength) + THREADS_PER_BLOCK;
+	int j = getColumn(secondLength) + blockDim.x;
 
 	int cols = secondLength + 1;
 
@@ -151,7 +143,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 	char seqBuffer[ALPHA];
 	getSequenceBuffer(i, first, seqBuffer);
 
-	for(int innerDiagonal = THREADS_PER_BLOCK; innerDiagonal < C; innerDiagonal++) {
+	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
 		element *current = &matrix[j + 1 + (i + 1) * cols];
 		element *left = current - 1;
 		element *up = current - cols;
@@ -191,7 +183,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 }
 
 int main(int argc, char *argv[]) {
-    printf("> Welcome to SWaligner v%s\n\n", VERSION);
+    printf("### Welcome to SWaligner v%s\n\n", VERSION);
 
     if (argc != 7) {
         printf("Expected 6 input arguments, not %d!\n\n", argc - 1);
@@ -203,14 +195,14 @@ int main(int argc, char *argv[]) {
     FASTAsequence *pFirst = &first;
     FASTAsequence *pSecond = &second;
 
-    printf("Loading input sequences... ");
+    printf("> Loading input sequences... ");
     if(!first.load() || !second.load())
     	exitWithMsg("An error has occured while loading input sequences!", -1);
     else
     	printf("DONE\n\n");
 	
-    printf("First sequence of length %d:\n%s\n\n", first.getLength(), first.getSequenceName());
-    printf("Second sequence of length %d:\n%s\n\n", second.getLength(), second.getSequenceName());
+    printf("First sequence of length %d:\n%s\n", first.getLength(), first.getSequenceName());
+    printf("Second sequence of length %d:\n%s\n", second.getLength(), second.getSequenceName());
 
     if(second.getLength() > first.getLength()) {
     	FASTAsequence *temp = pFirst;
@@ -218,12 +210,27 @@ int main(int argc, char *argv[]) {
     	pSecond = temp;
     }
 
-    if(!pFirst->doPaddingForRows(ALPHA) || !pSecond->doPaddingForColumns(BLOCKS_PER_GRID))
+    printf("> Looking for CUDA capable cards... ");
+    CUDAcard bestGpu = findBestDevice();
+    safeAPIcall(cudaSetDevice(bestGpu.cardNumber));
+    printf("DONE\n\n");
+    printf("Found %d CUDA capable GPU(s), picked GPU number %d:\n",
+    		bestGpu.cardsInSystem, bestGpu.cardNumber + 1);
+    printCardInfo(bestGpu);
+    printf("\n");
+
+    printf("> Initializing launch configuration... ");
+    LaunchConfig config = getLaunchConfig(pSecond->getLength(), bestGpu);
+    printf("DONE\n\n");
+    printLaunchConfig(config);
+    printf("\n");
+
+    if(!pFirst->doPaddingForRows(ALPHA) || !pSecond->doPaddingForColumns(config.blocks))
     	exitWithMsg("An error has occured while applying padding on input sequences.", -1);
 
     scoring values = initScoringValues(argv[3], argv[4], argv[5], argv[6]);
 
-    printf("Starting alignment process... ");
+    printf("> Starting alignment process... ");
 
     element *devMatrix;
     int matrixSize = sizeof(element) * (first.getLength() + 1) * (second.getLength() + 1);
@@ -236,7 +243,7 @@ int main(int argc, char *argv[]) {
     max.column = -1;
 
     alignmentScore *blockScore;
-    int blockScoreSize = sizeof(alignmentScore) * BLOCKS_PER_GRID;
+    int blockScoreSize = sizeof(alignmentScore) * config.blocks;
     blockScore = (alignmentScore *)malloc(blockScoreSize);
     if(blockScore == NULL)
     	exitWithMsg("An error has occured while allocating blockScores array on host.", -1);
@@ -255,14 +262,13 @@ int main(int argc, char *argv[]) {
     safeAPIcall(cudaMemcpy(devSecond, pSecond->getSequence(),
     		pSecond->getLength() * sizeof(char), cudaMemcpyHostToDevice));
 
-	int D = BLOCKS_PER_GRID + ceil(((double) pFirst->getLength()) / (ALPHA * THREADS_PER_BLOCK)) - 1;
+	int D = config.blocks + ceil(((double) pFirst->getLength()) / (ALPHA * config.threads)) - 1;
 	
     cudaTimer timer;
     timer.start();
 
-    // D + BLOCKS_PER_GRID
-    for(int dk = 0; dk < D + BLOCKS_PER_GRID; dk++) {
-    	shortPhase<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
+    for(int dk = 0; dk < D + config.blocks; dk++) {
+    	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
     			dk,
     			devMatrix,
     			devFirst,
@@ -275,7 +281,7 @@ int main(int argc, char *argv[]) {
 
     	safeAPIcall(cudaDeviceSynchronize());
 
-		longPhase<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(
+		longPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
 				dk,
 				devMatrix,
 				devFirst,
@@ -292,7 +298,7 @@ int main(int argc, char *argv[]) {
     timer.stop();
 
     safeAPIcall(cudaMemcpy(blockScore, devBlockScore, blockScoreSize, cudaMemcpyDeviceToHost));
-	for(int i = 0; i < BLOCKS_PER_GRID; i++) {
+	for(int i = 0; i < config.blocks; i++) {
 		if(max.score < blockScore[i].score) {
 			max.score = blockScore[i].score;
 			max.column = blockScore[i].column;
@@ -315,7 +321,7 @@ int main(int argc, char *argv[]) {
 
     printf("Kernel executed in %f s\n", timer.getElapsedTimeMillis() / 1000);
 
-    printf("\nAlignment score: %d at [%d, %d]\n", max.score, max.row, max.column);
+    printf("\nAlignment score: %d at [%d, %d]\n", max.score, max.row + 1, max.column + 1);
 
     safeAPIcall(cudaFree(devMatrix));
     safeAPIcall(cudaFree(devBlockScore));

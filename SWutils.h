@@ -13,7 +13,14 @@
 typedef struct {
 	int blocks;
 	int threads;
+	int sharedMemSize;
 } LaunchConfig;
+
+typedef struct {
+    int score;
+    int row;
+    int column;
+} alignmentScore;
 
 typedef struct {
     int match;
@@ -21,6 +28,18 @@ typedef struct {
     int first;
     int extension;
 } scoring;
+
+typedef struct {
+	char name[256];
+	int cardNumber;
+	int cardsInSystem;
+	int major;
+	int minor;
+	unsigned long long globalMem;
+	int maxThreadsPerBlock;
+	int SMs;
+	int cudaCores;
+} CUDAcard;
 
 class cudaTimer {
 private:
@@ -39,9 +58,13 @@ public:
     float getElapsedTimeMillis();
 };
 
-LaunchConfig getLaunchConfig(int shorterSeqLength);
+LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu);
 
-cudaDeviceProp bestDevice(void);
+void printLaunchConfig(LaunchConfig config);
+
+CUDAcard findBestDevice();
+
+void printCardInfo(CUDAcard gpu);
 
 void exitWithMsg(const char *msg, int exitCode);
 
