@@ -4,53 +4,17 @@
 #include <math.h>
 #include <cuda.h>
 
+#include "Defines.h"
 #include "FASTA.h"
 #include "SWutils.h"
-
-#define VERSION "0.4.0"
-
-#define ALPHA 4
+#include "Buffers.cuh"
+#include "SWkernel.cuh"
 
 typedef struct {
 	int H;
 	int E;
 	int F;
 } element;
-
-__device__ void getSequenceBuffer(int i, char *sequence, char *seqBuffer) {
-	for(int a = 0; a < ALPHA; a++)
-		seqBuffer[a] = sequence[i + a];
-}
-
-__device__ int getColumn(int secondLength) {
-	return secondLength / gridDim.x * (gridDim.x - blockIdx.x - 1) - threadIdx.x;
-}
-
-__device__ int getRow(int dk) {
-	return (dk + blockIdx.x - gridDim.x + 1) *
-			blockDim.x * ALPHA + threadIdx.x * ALPHA;
-}
-
-__device__ void getBlockMax(alignmentScore *blockMax, alignmentScore *blockScore) {
-	int nearestPowof2 = 1;
-		while (nearestPowof2 < blockDim.x)
-			nearestPowof2 <<= 1;
-
-		int index = nearestPowof2 / 2;
-		while(index != 0) {
-			if(threadIdx.x < index && threadIdx.x + index < blockDim.x) {
-				if(blockMax[threadIdx.x].score <= blockMax[threadIdx.x + index].score)
-					blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
-			}
-
-			__syncthreads();
-			index /= 2;
-		}
-
-		if(threadIdx.x == 0 && blockScore[blockIdx.x].score < blockMax[0].score) {
-			blockScore[blockIdx.x] = blockMax[0];
-		}
-}
 
 __global__ void shortPhase(int dk, element *matrix, char *first,
 	int firstLength, char *second, int secondLength, scoring values,
@@ -79,13 +43,13 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 		element *up = current - cols;
 		element *diagonal = up - 1;
 
-		char seqBuffer[ALPHA];
-		getSequenceBuffer(i, first, seqBuffer);
+		char rowBuffer[ALPHA];
+		getRowBuffer(i, first, rowBuffer);
 
 		for(int a = 0; a < ALPHA; a++) {
 			if(i >= 0 && i < firstLength) {
 				int matchMissmatch = values.mismatch;
-				if(seqBuffer[a] == second[j])
+				if(rowBuffer[a] == second[j])
 					matchMissmatch = values.match;
 
 				current->E = max(left->E + values.extension, left->H + values.first);
@@ -116,7 +80,7 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 		if(j == secondLength) {
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
-			getSequenceBuffer(i, first, seqBuffer);
+			getRowBuffer(i, first, rowBuffer);
 		}
 
 	}
@@ -140,8 +104,8 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 
 	//printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
 
-	char seqBuffer[ALPHA];
-	getSequenceBuffer(i, first, seqBuffer);
+	char rowBuffer[ALPHA];
+	getRowBuffer(i, first, rowBuffer);
 
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
 		element *current = &matrix[j + 1 + (i + 1) * cols];
@@ -152,7 +116,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 		for(int a = 0; a < ALPHA; a++) {
 			if(i >= 0 && i < firstLength && j < secondLength && j >= 0) {
 				int matchMissmatch = values.mismatch;
-				if(seqBuffer[a] == second[j])
+				if(rowBuffer[a] == second[j])
 				matchMissmatch = values.match;
 
 				current->E = max(left->E + values.extension, left->H + values.first);
@@ -183,7 +147,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 }
 
 int main(int argc, char *argv[]) {
-    printf("### Welcome to SWaligner v%s\n\n", VERSION);
+    printf("### Welcome to SWalign v%s\n\n", VERSION);
 
     if (argc != 7) {
         printf("Expected 6 input arguments, not %d!\n\n", argc - 1);
@@ -197,7 +161,7 @@ int main(int argc, char *argv[]) {
 
     printf("> Loading input sequences... ");
     if(!first.load() || !second.load())
-    	exitWithMsg("An error has occured while loading input sequences!", -1);
+    	exitWithMsg("An error has occured while loading input sequences.", -1);
     else
     	printf("DONE\n\n");
 	
@@ -225,17 +189,15 @@ int main(int argc, char *argv[]) {
     printLaunchConfig(config);
     printf("\n");
 
-    if(!pFirst->doPaddingForRows(ALPHA) || !pSecond->doPaddingForColumns(config.blocks))
+    if(!pFirst->doPaddingForRows() || !pSecond->doPaddingForColumns(config.blocks))
     	exitWithMsg("An error has occured while applying padding on input sequences.", -1);
 
     scoring values = initScoringValues(argv[3], argv[4], argv[5], argv[6]);
 
     printf("> Starting alignment process... ");
 
-    element *devMatrix;
     int matrixSize = sizeof(element) * (first.getLength() + 1) * (second.getLength() + 1);
-    safeAPIcall(cudaMalloc(&devMatrix, matrixSize));
-    safeAPIcall(cudaMemset(devMatrix, 0, matrixSize));
+    element *devMatrix = (element *) cudaGetSpaceAndSet(matrixSize, 0);
 
     alignmentScore max;
     max.score = -1;
@@ -244,23 +206,21 @@ int main(int argc, char *argv[]) {
 
     alignmentScore *blockScore;
     int blockScoreSize = sizeof(alignmentScore) * config.blocks;
-    blockScore = (alignmentScore *)malloc(blockScoreSize);
+    blockScore = (alignmentScore *) malloc(blockScoreSize);
     if(blockScore == NULL)
     	exitWithMsg("An error has occured while allocating blockScores array on host.", -1);
     
-	alignmentScore *devBlockScore;
-	safeAPIcall(cudaMalloc(&devBlockScore, blockScoreSize));
-	safeAPIcall(cudaMemset(devBlockScore, 0, blockScoreSize));
+	alignmentScore *devBlockScore = (alignmentScore *) cudaGetSpaceAndSet(blockScoreSize, 0);
 
-    char *devFirst;
-    safeAPIcall(cudaMalloc(&devFirst, pFirst->getLength() * sizeof(char)));
-    safeAPIcall(cudaMemcpy(devFirst, pFirst->getSequence(),
-    		pFirst->getLength() * sizeof(char), cudaMemcpyHostToDevice));
+    char *devFirst = (char *) cudaGetDeviceCopy(
+    		pFirst->getSequence(),
+    		pFirst->getLength() * sizeof(char)
+    		);
 
-    char *devSecond;
-    safeAPIcall(cudaMalloc(&devSecond, pSecond->getLength() * sizeof(char)));
-    safeAPIcall(cudaMemcpy(devSecond, pSecond->getSequence(),
-    		pSecond->getLength() * sizeof(char), cudaMemcpyHostToDevice));
+    char *devSecond = (char *) cudaGetDeviceCopy(
+    		pSecond->getSequence(),
+    		pSecond->getLength() * sizeof(char)
+    		);
 
 	int D = config.blocks + ceil(((double) pFirst->getLength()) / (ALPHA * config.threads)) - 1;
 	
