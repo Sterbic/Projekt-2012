@@ -70,6 +70,10 @@ void exitWithMsg(const char *msg, int exitCode);
 
 void safeAPIcall(cudaError_t err);
 
+void *cudaGetSpaceAndSet(int size, int setTo);
+
+void *cudaGetDeviceCopy(void *src, int size);
+
 scoring initScoringValues(const char *match, const char *mismath,
 		const char *first, const char *extension);
 

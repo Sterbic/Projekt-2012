@@ -73,6 +73,20 @@ float cudaTimer::getElapsedTimeMillis() {
 	return time;
 }
 
+void *cudaGetSpaceAndSet(int size, int setTo) {
+	void *devPointer = NULL;
+	safeAPIcall(cudaMalloc(&devPointer, size));
+	safeAPIcall(cudaMemset(devPointer, setTo, size));
+	return devPointer;
+}
+
+
+void *cudaGetDeviceCopy(void *src, int size) {
+	void *devicePointer = cudaGetSpaceAndSet(size, 0);
+	safeAPIcall(cudaMemcpy(devicePointer, src, size, cudaMemcpyHostToDevice));
+	return devicePointer;
+}
+
 LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 	LaunchConfig config;
 	
