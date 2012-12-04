@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "Defines.h"
 #include "FASTA.h"
 
 FASTAsequence::FASTAsequence(char *fileName) {
@@ -104,10 +105,10 @@ bool FASTAsequence::doPadding(int padTo, char withSymb) {
 	return true;
 }
 
-bool FASTAsequence::doPaddingForColumns(int BLOCKS_PER_GRID) {
-	return doPadding(BLOCKS_PER_GRID, '#');
+bool FASTAsequence::doPaddingForColumns(int blocks) {
+	return doPadding(blocks, '#');
 }
 
-bool FASTAsequence::doPaddingForRows(int ALPHA) {
+bool FASTAsequence::doPaddingForRows() {
 	return doPadding(ALPHA, '$');
 }

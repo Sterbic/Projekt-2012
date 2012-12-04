@@ -30,9 +30,9 @@ public:
 
 	bool load();
 
-	bool doPaddingForColumns(int BLOCKS_PER_GRID);
+	bool doPaddingForColumns(int blocks);
 
-	bool doPaddingForRows(int ALPHA);
+	bool doPaddingForRows();
 };
 
 #endif /* FASTA_H_ */
