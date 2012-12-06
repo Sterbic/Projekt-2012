@@ -16,15 +16,19 @@ typedef struct {
 	int F;
 } element;
 
-__global__ void shortPhase(int dk, element *matrix, char *first,
-	int firstLength, char *second, int secondLength, scoring values,
-	alignmentScore *blockScore) {
+__global__ void shortPhase(
+		int dk,
+		HorizontalBuffer hbuffer,
+		VerticalBuffer vbuffer,
+		char *first,
+		int firstLength,
+		char *second,
+		int secondLength,
+		scoring values,
+		alignmentScore *score
+		) {
 
-	extern __shared__ char dynamicShared[];
-	SharedMem shared;
-	initSharedMem(&shared, dynamicShared);
-
-	shared.blockMax[threadIdx.x].score = -1;
+	extern __shared__ int2 iHbuffer[];
 
 	int i = getRow(dk);
 	int j = getColumn(secondLength);
@@ -36,124 +40,216 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 
 //	printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
 
-	int cols = secondLength + 1;
-
 	char rowBuffer[ALPHA];
 	getRowBuffer(i, first, rowBuffer);
 
-	int colBufIndex = blockDim.x - threadIdx.x - 1;
-	initColumnBuffer(j, second, secondLength, shared.columnBuffer);
+	K iBuffer;
+	initK(&iBuffer, i, j, &hbuffer, &vbuffer);
 
 	__syncthreads();
 
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
-		element *current = &matrix[j + 1 + (i + 1) * cols];
-		element *left = current - 1;
-		element *up = current - cols;
-		element *diagonal = up - 1;
 
-		for(int a = 0; a < ALPHA; a++) {
-			if(i >= 0 && i < firstLength) {
-				int matchMissmatch = values.mismatch;
-				if(rowBuffer[a] == shared.columnBuffer[colBufIndex])
-					matchMissmatch = values.match;
+		if(i >= 0 && i < firstLength) {
+			int matchMismatch = values.mismatch;
+			if(rowBuffer[0] == second[j])
+				matchMismatch = values.match;
 
-				current->E = max(left->E + values.extension, left->H + values.first);
-				current->F = max(up->F + values.extension, up->H + values.first);
-				current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
+			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
+			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
+			iBuffer.curr0.x = max(max(0, iBuffer.curr0.y), max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
 
-			/*	if(blockIdx.x == 2 && threadIdx.x == 0)
-					printf("Short [B%d, T%d][%d, %d] = [%d, %d, %d] m=%d first=%c secind=%c\n\n",
-							blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F, matchMissmatch, first[i], second[j]); */
+		//	current->E = max(left->E + values.extension, left->H + values.first);
+		//	current->F = max(up->F + values.extension, up->H + values.first);
+		//	current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
 
-				if(current->H > shared.blockMax[threadIdx.x].score) {
-					shared.blockMax[threadIdx.x].score = current->H;
-					shared.blockMax[threadIdx.x].row = i + a;
-					shared.blockMax[threadIdx.x].column = j;
-				}
+		/*	if(blockIdx.x == 2 && threadIdx.x == 0)
+				printf("Short [B%d, T%d][%d, %d] = [%d, %d, %d] m=%d first=%c secind=%c\n\n",
+						blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F, matchMissmatch, first[i], second[j]); */
 
-				up = current;
-				diagonal = left;
-				current += cols;
-				left = current - 1;
+			int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			if(iBuffer.curr0.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr0.x;
+				score[scoreIndex].row = i;
+				score[scoreIndex].column = j;
+			}
+
+			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
+			iBuffer.curr1.z = max(iBuffer.curr0.z + values.extension, iBuffer.curr0.x + values.first);
+			iBuffer.curr1.x = max(max(0, iBuffer.curr1.y), max(iBuffer.curr1.z, iBuffer.left0.x + matchMismatch));
+
+			if(iBuffer.curr1.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr1.x;
+				score[scoreIndex].row = i + 1;
+				score[scoreIndex].column = j;
+			}
+
+			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
+			iBuffer.curr2.z = max(iBuffer.curr1.z + values.extension, iBuffer.curr1.x + values.first);
+			iBuffer.curr2.x = max(max(0, iBuffer.curr2.y), max(iBuffer.curr2.z, iBuffer.left1.x + matchMismatch));
+
+			if(iBuffer.curr2.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr2.x;
+				score[scoreIndex].row = i + 2;
+				score[scoreIndex].column = j;
+			}
+
+			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
+			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
+			iBuffer.curr3.x = max(max(0, iBuffer.curr3.y), max(iBuffer.curr3.z, iBuffer.left2.x + matchMismatch));
+
+			if(iBuffer.curr3.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr3.x;
+				score[scoreIndex].row = i + 3;
+				score[scoreIndex].column = j;
 			}
 		}
 
 		__syncthreads();
 
-		colBufIndex++;
+		if(threadIdx.x < blockDim.x - 1) {
+			iHbuffer[threadIdx.x].x = iBuffer.curr3.x;
+			iHbuffer[threadIdx.x].y = iBuffer.curr3.z;
+		}
+		else {
+			hbuffer.up[j].x = iBuffer.curr3.x;
+			hbuffer.up[j].y = iBuffer.curr3.z;
+		}
+
 		j++;
+
+		__syncthreads();
 
 		if(j == secondLength) {
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
 			getRowBuffer(i, first, rowBuffer);
+			initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+		}
+		else {
+			int2 newUp = iHbuffer[threadIdx.x];
+			if(threadIdx.x == 0)
+				newUp = hbuffer.up[j];
+
+			pushForwardK(&iBuffer, newUp);
 		}
 
+		__syncthreads();
 	}
 
-	getBlockMax(shared.blockMax,blockScore);
+	updateVerticalBuffer(&iBuffer, &vbuffer, i);
 }
 
-__global__ void longPhase(int dk, element *matrix,char *first,
-		int firstLength, char *second, int secondLength, scoring values,
-		alignmentScore *blockScore) {
+__global__ void longPhase(
+		int dk,
+		HorizontalBuffer hbuffer,
+		VerticalBuffer vbuffer,
+		char *first,
+		int firstLength,
+		char *second,
+		int secondLength,
+		scoring values,
+		alignmentScore *score
+		) {
 
-	extern __shared__ char dynamicShared[];
-	SharedMem shared;
-	initSharedMem(&shared, dynamicShared);
-
-	shared.blockMax[threadIdx.x].score = -1;
+	extern __shared__ int2 iHbuffer[];
 
 	int C = secondLength / gridDim.x;
 
 	int i = getRow(dk);
 	int j = getColumn(secondLength) + blockDim.x;
 
-	int cols = secondLength + 1;
-
 	//printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
 
 	char rowBuffer[ALPHA];
 	getRowBuffer(i, first, rowBuffer);
 
+	K iBuffer;
+	initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+
+	__syncthreads();
+
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
-		element *current = &matrix[j + 1 + (i + 1) * cols];
-		element *left = current - 1;
-		element *up = current - cols;
-		element *diagonal = up - 1;
+		if(i >= 0 && i < firstLength) {
+			int matchMismatch = values.mismatch;
+			if(rowBuffer[0] == second[j])
+				matchMismatch = values.match;
 
-		for(int a = 0; a < ALPHA; a++) {
-			if(i >= 0 && i < firstLength && j < secondLength && j >= 0) {
-				int matchMissmatch = values.mismatch;
-				if(rowBuffer[a] == second[j])
-					matchMissmatch = values.match;
+			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
+			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
+			iBuffer.curr0.x = max(max(0, iBuffer.curr0.y), max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
 
-				current->E = max(left->E + values.extension, left->H + values.first);
-				current->F = max(up->F + values.extension, up->H + values.first);
-				current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
+		//	current->E = max(left->E + values.extension, left->H + values.first);
+		//	current->F = max(up->F + values.extension, up->H + values.first);
+		//	current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
 
-				//printf("Long [B%d, T%d][%d, %d] = [%d, %d, %d]\n\n", blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F);
+		/*	if(blockIdx.x == 2 && threadIdx.x == 0)
+				printf("Short [B%d, T%d][%d, %d] = [%d, %d, %d] m=%d first=%c secind=%c\n\n",
+						blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F, matchMissmatch, first[i], second[j]); */
 
-				if(current->H > shared.blockMax[threadIdx.x].score) {
-					shared.blockMax[threadIdx.x].score = current->H;
-					shared.blockMax[threadIdx.x].row = i + a;
-					shared.blockMax[threadIdx.x].column = j;
-				}
-
-				up = current;
-				diagonal = left;
-				current += cols;
-				left = current - 1;
+			int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			if(iBuffer.curr0.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr0.x;
+				score[scoreIndex].row = i;
+				score[scoreIndex].column = j;
 			}
+
+			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
+			iBuffer.curr1.z = max(iBuffer.curr0.z + values.extension, iBuffer.curr0.x + values.first);
+			iBuffer.curr1.x = max(max(0, iBuffer.curr1.y), max(iBuffer.curr1.z, iBuffer.left0.x + matchMismatch));
+
+			if(iBuffer.curr1.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr1.x;
+				score[scoreIndex].row = i + 1;
+				score[scoreIndex].column = j;
+			}
+
+			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
+			iBuffer.curr2.z = max(iBuffer.curr1.z + values.extension, iBuffer.curr1.x + values.first);
+			iBuffer.curr2.x = max(max(0, iBuffer.curr2.y), max(iBuffer.curr2.z, iBuffer.left1.x + matchMismatch));
+
+			if(iBuffer.curr2.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr2.x;
+				score[scoreIndex].row = i + 2;
+				score[scoreIndex].column = j;
+			}
+
+			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
+			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
+			iBuffer.curr3.x = max(max(0, iBuffer.curr3.y), max(iBuffer.curr3.z, iBuffer.left2.x + matchMismatch));
+
+			if(iBuffer.curr3.x > score[scoreIndex].score) {
+				score[scoreIndex].score = iBuffer.curr3.x;
+				score[scoreIndex].row = i + 3;
+				score[scoreIndex].column = j;
+			}
+		}
+
+		__syncthreads();
+
+		if(threadIdx.x < blockDim.x - 1) {
+			iHbuffer[threadIdx.x].x = iBuffer.curr3.x;
+			iHbuffer[threadIdx.x].y = iBuffer.curr3.z;
+		}
+		else {
+			hbuffer.up[j].x = iBuffer.curr3.x;
+			hbuffer.up[j].y = iBuffer.curr3.z;
 		}
 
 		j++;
 
 		__syncthreads();
+
+		int2 newUp = iHbuffer[threadIdx.x];
+		if(threadIdx.x == 0)
+			newUp = hbuffer.up[j];
+
+		pushForwardK(&iBuffer, newUp);
+
+		__syncthreads();
 	}
 
-	getBlockMax(shared.blockMax, blockScore);
+	updateVerticalBuffer(&iBuffer, &vbuffer, i);
 }
 
 int main(int argc, char *argv[]) {
@@ -206,21 +302,18 @@ int main(int argc, char *argv[]) {
 
     printf("> Starting alignment process... ");
 
-    int matrixSize = sizeof(element) * (first.getLength() + 1) * (second.getLength() + 1);
-    element *devMatrix = (element *) cudaGetSpaceAndSet(matrixSize, 0);
-
     alignmentScore max;
     max.score = -1;
     max.row = -1;
     max.column = -1;
 
-    alignmentScore *blockScore;
-    int blockScoreSize = sizeof(alignmentScore) * config.blocks;
-    blockScore = (alignmentScore *) malloc(blockScoreSize);
-    if(blockScore == NULL)
+    alignmentScore *score;
+    int scoreSize = sizeof(alignmentScore) * config.blocks * config.threads;
+    score = (alignmentScore *) malloc(scoreSize);
+    if(score == NULL)
     	exitWithMsg("An error has occured while allocating blockScores array on host.", -1);
     
-	alignmentScore *devBlockScore = (alignmentScore *) cudaGetSpaceAndSet(blockScoreSize, 0);
+	alignmentScore *devScore = (alignmentScore *) cudaGetSpaceAndSet(scoreSize, 0);
 
     char *devFirst = (char *) cudaGetDeviceCopy(
     		pFirst->getSequence(),
@@ -231,6 +324,16 @@ int main(int argc, char *argv[]) {
     		pSecond->getSequence(),
     		pSecond->getLength() * sizeof(char)
     		);
+
+    HorizontalBuffer hbuffer;
+    hbuffer.up = (int2 *) cudaGetSpaceAndSet((pSecond->getLength() + 1) * sizeof(int2) , 0);
+
+    VerticalBuffer vbuffer;
+    vbuffer.diagonal = (int *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int), 0);
+    vbuffer.left0 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
+    vbuffer.left1 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
+    vbuffer.left2 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
+    vbuffer.left3 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
 
 	int D = config.blocks + ceil(((double) pFirst->getLength()) / (ALPHA * config.threads)) - 1;
 
@@ -243,26 +346,28 @@ int main(int argc, char *argv[]) {
     for(int dk = 0; dk < D + config.blocks; dk++) {
     	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
     			dk,
-    			devMatrix,
+    			hbuffer,
+    			vbuffer,
     			devFirst,
     			pFirst->getLength(),
     			devSecond,
     			pSecond->getLength(),
     			values,
-    			devBlockScore
+    			devScore
     			);
 
     	safeAPIcall(cudaDeviceSynchronize());
 
 		longPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
 				dk,
-				devMatrix,
+    			hbuffer,
+    			vbuffer,
 				devFirst,
 				pFirst->getLength(),
 				devSecond,
 				pSecond->getLength(),
 				values,
-				devBlockScore
+				devScore
 		);
 
 		safeAPIcall(cudaDeviceSynchronize());
@@ -270,12 +375,12 @@ int main(int argc, char *argv[]) {
     
     timer.stop();
 
-    safeAPIcall(cudaMemcpy(blockScore, devBlockScore, blockScoreSize, cudaMemcpyDeviceToHost));
-	for(int i = 0; i < config.blocks; i++) {
-		if(max.score < blockScore[i].score) {
-			max.score = blockScore[i].score;
-			max.column = blockScore[i].column;
-			max.row = blockScore[i].row;
+    safeAPIcall(cudaMemcpy(score, devScore, scoreSize, cudaMemcpyDeviceToHost));
+	for(int i = 0; i < config.blocks * config.threads; i++) {
+		if(max.score < score[i].score) {
+			max.score = score[i].score;
+			max.column = score[i].column;
+			max.row = score[i].row;
 		}
     }
 
@@ -296,12 +401,17 @@ int main(int argc, char *argv[]) {
 
     printf("\nAlignment score: %d at [%d, %d]\n", max.score, max.row + 1, max.column + 1);
 
-    safeAPIcall(cudaFree(devMatrix));
-    safeAPIcall(cudaFree(devBlockScore));
+    safeAPIcall(cudaFree(devScore));
     safeAPIcall(cudaFree(devFirst));
     safeAPIcall(cudaFree(devSecond));
+    safeAPIcall(cudaFree(hbuffer.up));
+    safeAPIcall(cudaFree(vbuffer.diagonal));
+    safeAPIcall(cudaFree(vbuffer.left0));
+    safeAPIcall(cudaFree(vbuffer.left1));
+    safeAPIcall(cudaFree(vbuffer.left2));
+    safeAPIcall(cudaFree(vbuffer.left3));
 
-    free(blockScore);
+    free(score);
 
     return 0;
 }

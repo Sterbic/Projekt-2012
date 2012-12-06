@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <cuda.h>
 #include <driver_types.h>
 #include <cuda_runtime_api.h>
 
@@ -98,11 +99,10 @@ LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 
     if (config.blocks == 0) {
         config.blocks = 1;
-        config.threads = shorterSeqLength / 2;
+        config.threads = shorterSeqLength / ALPHA;
     }
 
-    config.sharedMemSize = config.threads * sizeof(alignmentScore);
-    config.sharedMemSize += 2 * config.threads * sizeof(char);
+    config.sharedMemSize = (config.threads - 1) * sizeof(int2);
 
     return config;
 }
