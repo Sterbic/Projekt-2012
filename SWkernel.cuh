@@ -21,23 +21,23 @@ __device__ int getRow(int dk) {
 
 __device__ void getBlockMax(alignmentScore *blockMax, alignmentScore *blockScore) {
 	int nearestPowof2 = 1;
-		while (nearestPowof2 < blockDim.x)
-			nearestPowof2 <<= 1;
+	while (nearestPowof2 < blockDim.x)
+		nearestPowof2 <<= 1;
 
-		int index = nearestPowof2 / 2;
-		while(index != 0) {
-			if(threadIdx.x < index && threadIdx.x + index < blockDim.x) {
-				if(blockMax[threadIdx.x].score <= blockMax[threadIdx.x + index].score)
-					blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
-			}
-
-			__syncthreads();
-			index /= 2;
+	int index = nearestPowof2 / 2;
+	while(index != 0) {
+		if(threadIdx.x < index && threadIdx.x + index < blockDim.x) {
+			if(blockMax[threadIdx.x].score <= blockMax[threadIdx.x + index].score)
+				blockMax[threadIdx.x] = blockMax[threadIdx.x + index];
 		}
 
-		if(threadIdx.x == 0 && blockScore[blockIdx.x].score < blockMax[0].score) {
-			blockScore[blockIdx.x] = blockMax[0];
-		}
+		__syncthreads();
+		index /= 2;
+	}
+
+	if(threadIdx.x == 0 && blockScore[blockIdx.x].score < blockMax[0].score) {
+		blockScore[blockIdx.x] = blockMax[0];
+	}
 }
 
 #endif /* SWKERNEL_CUH_ */

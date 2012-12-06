@@ -17,12 +17,6 @@ typedef struct {
 } LaunchConfig;
 
 typedef struct {
-    int score;
-    int row;
-    int column;
-} alignmentScore;
-
-typedef struct {
     int match;
     int mismatch;
     int first;

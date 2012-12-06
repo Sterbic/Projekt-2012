@@ -20,8 +20,11 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 	int firstLength, char *second, int secondLength, scoring values,
 	alignmentScore *blockScore) {
 
-	extern __shared__ alignmentScore blockMax[];
-	blockMax[threadIdx.x].score = -1;
+	extern __shared__ char dynamicShared[];
+	SharedMem shared;
+	initSharedMem(&shared, dynamicShared);
+
+	shared.blockMax[threadIdx.x].score = -1;
 
 	int i = getRow(dk);
 	int j = getColumn(secondLength);
@@ -35,6 +38,12 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 
 	int cols = secondLength + 1;
 
+	char rowBuffer[ALPHA];
+	getRowBuffer(i, first, rowBuffer);
+
+	int colBufIndex = blockDim.x - threadIdx.x - 1;
+	initColumnBuffer(j, second, secondLength, shared.columnBuffer);
+
 	__syncthreads();
 
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
@@ -43,13 +52,10 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 		element *up = current - cols;
 		element *diagonal = up - 1;
 
-		char rowBuffer[ALPHA];
-		getRowBuffer(i, first, rowBuffer);
-
 		for(int a = 0; a < ALPHA; a++) {
 			if(i >= 0 && i < firstLength) {
 				int matchMissmatch = values.mismatch;
-				if(rowBuffer[a] == second[j])
+				if(rowBuffer[a] == shared.columnBuffer[colBufIndex])
 					matchMissmatch = values.match;
 
 				current->E = max(left->E + values.extension, left->H + values.first);
@@ -60,10 +66,10 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 					printf("Short [B%d, T%d][%d, %d] = [%d, %d, %d] m=%d first=%c secind=%c\n\n",
 							blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F, matchMissmatch, first[i], second[j]); */
 
-				if(current->H > blockMax[threadIdx.x].score) {
-					blockMax[threadIdx.x].score = current->H;
-					blockMax[threadIdx.x].row = i + a;
-					blockMax[threadIdx.x].column = j;
+				if(current->H > shared.blockMax[threadIdx.x].score) {
+					shared.blockMax[threadIdx.x].score = current->H;
+					shared.blockMax[threadIdx.x].row = i + a;
+					shared.blockMax[threadIdx.x].column = j;
 				}
 
 				up = current;
@@ -75,6 +81,7 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 
 		__syncthreads();
 
+		colBufIndex++;
 		j++;
 
 		if(j == secondLength) {
@@ -85,15 +92,18 @@ __global__ void shortPhase(int dk, element *matrix, char *first,
 
 	}
 
-	getBlockMax(blockMax,blockScore);
+	getBlockMax(shared.blockMax,blockScore);
 }
 
 __global__ void longPhase(int dk, element *matrix,char *first,
 		int firstLength, char *second, int secondLength, scoring values,
 		alignmentScore *blockScore) {
 
-	extern __shared__ alignmentScore blockMax[];
-	blockMax[threadIdx.x].score = -1;
+	extern __shared__ char dynamicShared[];
+	SharedMem shared;
+	initSharedMem(&shared, dynamicShared);
+
+	shared.blockMax[threadIdx.x].score = -1;
 
 	int C = secondLength / gridDim.x;
 
@@ -117,7 +127,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 			if(i >= 0 && i < firstLength && j < secondLength && j >= 0) {
 				int matchMissmatch = values.mismatch;
 				if(rowBuffer[a] == second[j])
-				matchMissmatch = values.match;
+					matchMissmatch = values.match;
 
 				current->E = max(left->E + values.extension, left->H + values.first);
 				current->F = max(up->F + values.extension, up->H + values.first);
@@ -125,10 +135,10 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 
 				//printf("Long [B%d, T%d][%d, %d] = [%d, %d, %d]\n\n", blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F);
 
-				if(current->H > blockMax[threadIdx.x].score) {
-					blockMax[threadIdx.x].score = current->H;
-					blockMax[threadIdx.x].row = i + a;
-					blockMax[threadIdx.x].column = j;
+				if(current->H > shared.blockMax[threadIdx.x].score) {
+					shared.blockMax[threadIdx.x].score = current->H;
+					shared.blockMax[threadIdx.x].row = i + a;
+					shared.blockMax[threadIdx.x].column = j;
 				}
 
 				up = current;
@@ -143,7 +153,7 @@ __global__ void longPhase(int dk, element *matrix,char *first,
 		__syncthreads();
 	}
 
-	getBlockMax(blockMax,blockScore);
+	getBlockMax(shared.blockMax, blockScore);
 }
 
 int main(int argc, char *argv[]) {
@@ -223,6 +233,9 @@ int main(int argc, char *argv[]) {
     		);
 
 	int D = config.blocks + ceil(((double) pFirst->getLength()) / (ALPHA * config.threads)) - 1;
+
+	safeAPIcall(cudaFuncSetCacheConfig(shortPhase, cudaFuncCachePreferShared));
+	safeAPIcall(cudaFuncSetCacheConfig(longPhase, cudaFuncCachePreferShared));
 	
     cudaTimer timer;
     timer.start();

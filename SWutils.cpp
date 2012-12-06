@@ -12,6 +12,7 @@
 #include <driver_types.h>
 #include <cuda_runtime_api.h>
 
+#include "Defines.h"
 #include "SWutils.h"
 
 void exitWithMsg(const char *msg, int exitCode) {
@@ -80,7 +81,6 @@ void *cudaGetSpaceAndSet(int size, int setTo) {
 	return devPointer;
 }
 
-
 void *cudaGetDeviceCopy(void *src, int size) {
 	void *devicePointer = cudaGetSpaceAndSet(size, 0);
 	safeAPIcall(cudaMemcpy(devicePointer, src, size, cudaMemcpyHostToDevice));
@@ -90,7 +90,7 @@ void *cudaGetDeviceCopy(void *src, int size) {
 LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 	LaunchConfig config;
 	
-	config.blocks = gpu.cudaCores / 2;
+	config.blocks = gpu.cudaCores / 4;
 	config.threads = gpu.maxThreadsPerBlock / 8;
 	
 	if (config.threads * config.blocks * 2 > shorterSeqLength)
@@ -102,6 +102,7 @@ LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
     }
 
     config.sharedMemSize = config.threads * sizeof(alignmentScore);
+    config.sharedMemSize += 2 * config.threads * sizeof(char);
 
     return config;
 }
