@@ -102,7 +102,7 @@ LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
         config.threads = shorterSeqLength / ALPHA;
     }
 
-    config.sharedMemSize = (config.threads - 1) * sizeof(int2);
+    config.sharedMemSize = config.threads * sizeof(int2);
 
     return config;
 }

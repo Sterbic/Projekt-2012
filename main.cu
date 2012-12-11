@@ -29,6 +29,8 @@ __global__ void shortPhase(
 		) {
 
 	extern __shared__ int2 iHbuffer[];
+	//int tid = 1;
+	//int bl = 0;
 
 	int i = getRow(dk);
 	int j = getColumn(secondLength);
@@ -38,17 +40,29 @@ __global__ void shortPhase(
 		j += secondLength;
 	}
 
-//	printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+	if(threadIdx.x == 0)
+		iHbuffer[0] = hbuffer.up[j];
 
 	char rowBuffer[ALPHA];
 	getRowBuffer(i, first, rowBuffer);
 
 	K iBuffer;
-	initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+	if(i >= 0 && i < firstLength)
+		initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+
+/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+		printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+		printK(&iBuffer);
+		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
+	}*/
+
+	int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
 
 	__syncthreads();
 
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
+
+		__syncthreads();
 
 		if(i >= 0 && i < firstLength) {
 			int matchMismatch = values.mismatch;
@@ -59,20 +73,15 @@ __global__ void shortPhase(
 			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
 			iBuffer.curr0.x = max(max(0, iBuffer.curr0.y), max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
 
-		//	current->E = max(left->E + values.extension, left->H + values.first);
-		//	current->F = max(up->F + values.extension, up->H + values.first);
-		//	current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
-
-		/*	if(blockIdx.x == 2 && threadIdx.x == 0)
-				printf("Short [B%d, T%d][%d, %d] = [%d, %d, %d] m=%d first=%c secind=%c\n\n",
-						blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F, matchMissmatch, first[i], second[j]); */
-
-			int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			if(iBuffer.curr0.x > score[scoreIndex].score) {
 				score[scoreIndex].score = iBuffer.curr0.x;
 				score[scoreIndex].row = i;
 				score[scoreIndex].column = j;
 			}
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer[1] == second[j])
+				matchMismatch = values.match;
 
 			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
 			iBuffer.curr1.z = max(iBuffer.curr0.z + values.extension, iBuffer.curr0.x + values.first);
@@ -84,6 +93,10 @@ __global__ void shortPhase(
 				score[scoreIndex].column = j;
 			}
 
+			matchMismatch = values.mismatch;
+			if(rowBuffer[2] == second[j])
+				matchMismatch = values.match;
+
 			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
 			iBuffer.curr2.z = max(iBuffer.curr1.z + values.extension, iBuffer.curr1.x + values.first);
 			iBuffer.curr2.x = max(max(0, iBuffer.curr2.y), max(iBuffer.curr2.z, iBuffer.left1.x + matchMismatch));
@@ -93,6 +106,10 @@ __global__ void shortPhase(
 				score[scoreIndex].row = i + 2;
 				score[scoreIndex].column = j;
 			}
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer[3] == second[j])
+				matchMismatch = values.match;
 
 			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
 			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
@@ -105,39 +122,65 @@ __global__ void shortPhase(
 			}
 		}
 
+	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+			printK(&iBuffer);
+		} */
+
 		__syncthreads();
 
-		if(threadIdx.x < blockDim.x - 1) {
-			iHbuffer[threadIdx.x].x = iBuffer.curr3.x;
-			iHbuffer[threadIdx.x].y = iBuffer.curr3.z;
-		}
-		else {
-			hbuffer.up[j].x = iBuffer.curr3.x;
-			hbuffer.up[j].y = iBuffer.curr3.z;
+		if (i >= 0 && i < firstLength) {
+			if(threadIdx.x < blockDim.x - 1) {
+				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
+				iHbuffer[threadIdx.x + 1].y = iBuffer.curr3.z;
+			}
+			else {
+				hbuffer.up[j].x = iBuffer.curr3.x;
+				hbuffer.up[j].y = iBuffer.curr3.z;
+			}
 		}
 
 		j++;
 
 		__syncthreads();
 
+	/*	if(threadIdx.x == tid && blockIdx.x == bl)
+			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);*/
+
 		if(j == secondLength) {
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
 			getRowBuffer(i, first, rowBuffer);
-			initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+			initK(&iBuffer, i, j, iHbuffer, &vbuffer);
 		}
 		else {
-			int2 newUp = iHbuffer[threadIdx.x];
-			if(threadIdx.x == 0)
+			int2 newUp;
+			if(threadIdx.x > 0)
+				newUp = iHbuffer[threadIdx.x];
+			else
 				newUp = hbuffer.up[j];
 
 			pushForwardK(&iBuffer, newUp);
 		}
 
+/*		if(threadIdx.x == tid && blockIdx.x == bl) {
+			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+			printK(&iBuffer);
+			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
+		}*/
+
 		__syncthreads();
 	}
 
-	updateVerticalBuffer(&iBuffer, &vbuffer, i);
+	if (i >= 0 && i < firstLength) {
+		updateVerticalBuffer(&iBuffer, &vbuffer, i);
+		if(threadIdx.x < blockDim.x -1)
+			hbuffer.up[j - 1] = iHbuffer[threadIdx.x + 1];
+	}
+
+/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
+	}*/
 }
 
 __global__ void longPhase(
@@ -156,20 +199,33 @@ __global__ void longPhase(
 
 	int C = secondLength / gridDim.x;
 
+	//int tid = 1;
+	//int bl = 1;
+
 	int i = getRow(dk);
 	int j = getColumn(secondLength) + blockDim.x;
-
-	//printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
 
 	char rowBuffer[ALPHA];
 	getRowBuffer(i, first, rowBuffer);
 
 	K iBuffer;
-	initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+	if(i >= 0 && i < firstLength)
+		initK(&iBuffer, i, j, &hbuffer, &vbuffer);
+
+/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+		printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+		printK(&iBuffer);
+		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
+	} */
+
+	int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
 
 	__syncthreads();
 
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
+
+		__syncthreads();
+
 		if(i >= 0 && i < firstLength) {
 			int matchMismatch = values.mismatch;
 			if(rowBuffer[0] == second[j])
@@ -179,20 +235,15 @@ __global__ void longPhase(
 			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
 			iBuffer.curr0.x = max(max(0, iBuffer.curr0.y), max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
 
-		//	current->E = max(left->E + values.extension, left->H + values.first);
-		//	current->F = max(up->F + values.extension, up->H + values.first);
-		//	current->H = max(max(0, current->E), max(current->F, diagonal->H + matchMissmatch));
-
-		/*	if(blockIdx.x == 2 && threadIdx.x == 0)
-				printf("Short [B%d, T%d][%d, %d] = [%d, %d, %d] m=%d first=%c secind=%c\n\n",
-						blockIdx.x, threadIdx.x, i + a, j, current->H, current->E, current->F, matchMissmatch, first[i], second[j]); */
-
-			int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			if(iBuffer.curr0.x > score[scoreIndex].score) {
 				score[scoreIndex].score = iBuffer.curr0.x;
 				score[scoreIndex].row = i;
 				score[scoreIndex].column = j;
 			}
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer[1] == second[j])
+				matchMismatch = values.match;
 
 			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
 			iBuffer.curr1.z = max(iBuffer.curr0.z + values.extension, iBuffer.curr0.x + values.first);
@@ -204,6 +255,10 @@ __global__ void longPhase(
 				score[scoreIndex].column = j;
 			}
 
+			matchMismatch = values.mismatch;
+			if(rowBuffer[2] == second[j])
+				matchMismatch = values.match;
+
 			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
 			iBuffer.curr2.z = max(iBuffer.curr1.z + values.extension, iBuffer.curr1.x + values.first);
 			iBuffer.curr2.x = max(max(0, iBuffer.curr2.y), max(iBuffer.curr2.z, iBuffer.left1.x + matchMismatch));
@@ -213,6 +268,10 @@ __global__ void longPhase(
 				score[scoreIndex].row = i + 2;
 				score[scoreIndex].column = j;
 			}
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer[3] == second[j])
+				matchMismatch = values.match;
 
 			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
 			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
@@ -225,31 +284,57 @@ __global__ void longPhase(
 			}
 		}
 
+	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+			printK(&iBuffer);
+		}*/
+
 		__syncthreads();
 
-		if(threadIdx.x < blockDim.x - 1) {
-			iHbuffer[threadIdx.x].x = iBuffer.curr3.x;
-			iHbuffer[threadIdx.x].y = iBuffer.curr3.z;
-		}
-		else {
-			hbuffer.up[j].x = iBuffer.curr3.x;
-			hbuffer.up[j].y = iBuffer.curr3.z;
+		if (i >= 0 && i < firstLength) {
+			if(threadIdx.x < blockDim.x - 1) {
+				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
+				iHbuffer[threadIdx.x + 1].y = iBuffer.curr3.z;
+			}
+			else {
+				hbuffer.up[j].x = iBuffer.curr3.x;
+				hbuffer.up[j].y = iBuffer.curr3.z;
+			}
 		}
 
 		j++;
 
 		__syncthreads();
 
-		int2 newUp = iHbuffer[threadIdx.x];
-		if(threadIdx.x == 0)
+	/*	if(threadIdx.x == tid && blockIdx.x == bl)
+			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);*/
+
+		int2 newUp;
+		if(threadIdx.x > 0)
+			newUp = iHbuffer[threadIdx.x];
+		else
 			newUp = hbuffer.up[j];
 
 		pushForwardK(&iBuffer, newUp);
 
+	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+			printK(&iBuffer);
+			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
+		}*/
+
 		__syncthreads();
 	}
 
-	updateVerticalBuffer(&iBuffer, &vbuffer, i);
+	if (i >= 0 && i < firstLength) {
+		updateVerticalBuffer(&iBuffer, &vbuffer, i);
+		if(threadIdx.x < blockDim.x -1)
+			hbuffer.up[j - 1] = iHbuffer[threadIdx.x + 1];
+	}
+
+/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
+	}*/
 }
 
 int main(int argc, char *argv[]) {
@@ -326,7 +411,7 @@ int main(int argc, char *argv[]) {
     		);
 
     HorizontalBuffer hbuffer;
-    hbuffer.up = (int2 *) cudaGetSpaceAndSet((pSecond->getLength() + 1) * sizeof(int2) , 0);
+    hbuffer.up = (int2 *) cudaGetSpaceAndSet(pSecond->getLength() * sizeof(int2), 0);
 
     VerticalBuffer vbuffer;
     vbuffer.diagonal = (int *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int), 0);
@@ -343,6 +428,7 @@ int main(int argc, char *argv[]) {
     cudaTimer timer;
     timer.start();
 
+    // D + config.blocks
     for(int dk = 0; dk < D + config.blocks; dk++) {
     	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
     			dk,
@@ -357,11 +443,10 @@ int main(int argc, char *argv[]) {
     			);
 
     	safeAPIcall(cudaDeviceSynchronize());
-
 		longPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
 				dk,
-    			hbuffer,
-    			vbuffer,
+				hbuffer,
+				vbuffer,
 				devFirst,
 				pFirst->getLength(),
 				devSecond,
@@ -385,17 +470,6 @@ int main(int argc, char *argv[]) {
     }
 
     printf("DONE\n\n");
-/*
-    element *hostMatrix = (element *)malloc(matrixSize);
-    cudaMemcpy(hostMatrix, devMatrix, matrixSize, cudaMemcpyDeviceToHost);
-    for(int i = 0; i <= pFirst->getLength(); i++) {
-    	for(int j = 0; j <= pSecond->getLength(); j++) {
-    		printf("%d\t", hostMatrix[j + i * (pSecond->getLength() + 1)].H);
-    	}
-    	printf("\n");
-    }
-    free(hostMatrix);
-*/
 
     printf("Kernel executed in %f s\n", timer.getElapsedTimeMillis() / 1000);
 
