@@ -31,4 +31,9 @@ typedef struct {
 	int2 *up;
 } HorizontalBuffer;
 
+typedef struct {
+	VerticalBuffer vBuffer;
+	HorizontalBuffer hBuffer;
+} GlobalBuffer;
+
 #endif /* DEFINES_H_ */

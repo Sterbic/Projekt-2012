@@ -68,6 +68,10 @@ void *cudaGetSpaceAndSet(int size, int setTo);
 
 void *cudaGetDeviceCopy(void *src, int size);
 
+void initGlobalBuffer(GlobalBuffer *buffer, int secondLength, LaunchConfig config);
+
+void freeGlobalBuffer(GlobalBuffer *buffer);
+
 scoring initScoringValues(const char *match, const char *mismath,
 		const char *first, const char *extension);
 

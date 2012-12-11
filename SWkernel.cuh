@@ -25,6 +25,13 @@ typedef struct {
 	int3 curr3;
 } K;
 
+__device__ void getRowBuffer(int i, char *sequence, char4 *seqBuffer) {
+	seqBuffer->w = sequence[i];
+	seqBuffer->x = sequence[i + 1];
+	seqBuffer->y = sequence[i + 2];
+	seqBuffer->z = sequence[i + 3];
+}
+
 __device__ void printK(K *k) {
 	printf("\n##########\nB: %d, T: %d\n", blockIdx.x, threadIdx.x);
 	printf("|\t%d\t|\t%d %d\t|\n", k->diagonal, k->up.x, k->up.y);
@@ -64,18 +71,6 @@ __device__ void initK(K *k, int i, int j, HorizontalBuffer *hbuffer, VerticalBuf
 	k->left3 = vbuffer->left3[index];
 
 	k->up = hbuffer->up[j];
-}
-
-__device__ void getK0(K *k) {
-	k->diagonal = 0;
-
-	int2 zero;
-	zero.x = 0;
-	zero.y = 0;
-	k->left0 = zero;
-	k->left1 = zero;
-	k->left2 = zero;
-	k->left3 = zero;
 }
 
 __device__ void initK(K *k, int i, int j, int2 * lHbuffer, VerticalBuffer *vbuffer) {

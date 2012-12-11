@@ -7,7 +7,6 @@
 #include "Defines.h"
 #include "FASTA.h"
 #include "SWutils.h"
-#include "Buffers.cuh"
 #include "SWkernel.cuh"
 
 typedef struct {
@@ -43,8 +42,8 @@ __global__ void shortPhase(
 	if(threadIdx.x == 0)
 		iHbuffer[0] = hbuffer.up[j];
 
-	char rowBuffer[ALPHA];
-	getRowBuffer(i, first, rowBuffer);
+	char4 rowBuffer;
+	getRowBuffer(i, first, &rowBuffer);
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
@@ -58,15 +57,13 @@ __global__ void shortPhase(
 
 	int scoreIndex = threadIdx.x + blockIdx.x * blockDim.x;
 
-	__syncthreads();
-
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
 
 		__syncthreads();
 
 		if(i >= 0 && i < firstLength) {
 			int matchMismatch = values.mismatch;
-			if(rowBuffer[0] == second[j])
+			if(rowBuffer.w == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
@@ -80,7 +77,7 @@ __global__ void shortPhase(
 			}
 
 			matchMismatch = values.mismatch;
-			if(rowBuffer[1] == second[j])
+			if(rowBuffer.x == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
@@ -94,7 +91,7 @@ __global__ void shortPhase(
 			}
 
 			matchMismatch = values.mismatch;
-			if(rowBuffer[2] == second[j])
+			if(rowBuffer.y == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
@@ -108,7 +105,7 @@ __global__ void shortPhase(
 			}
 
 			matchMismatch = values.mismatch;
-			if(rowBuffer[3] == second[j])
+			if(rowBuffer.z == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
@@ -150,7 +147,7 @@ __global__ void shortPhase(
 		if(j == secondLength) {
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
-			getRowBuffer(i, first, rowBuffer);
+			getRowBuffer(i, first, &rowBuffer);
 			initK(&iBuffer, i, j, iHbuffer, &vbuffer);
 		}
 		else {
@@ -205,8 +202,8 @@ __global__ void longPhase(
 	int i = getRow(dk);
 	int j = getColumn(secondLength) + blockDim.x;
 
-	char rowBuffer[ALPHA];
-	getRowBuffer(i, first, rowBuffer);
+	char4 rowBuffer;
+	getRowBuffer(i, first, &rowBuffer);
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
@@ -223,12 +220,9 @@ __global__ void longPhase(
 	__syncthreads();
 
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
-
-		__syncthreads();
-
 		if(i >= 0 && i < firstLength) {
 			int matchMismatch = values.mismatch;
-			if(rowBuffer[0] == second[j])
+			if(rowBuffer.w == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
@@ -242,7 +236,7 @@ __global__ void longPhase(
 			}
 
 			matchMismatch = values.mismatch;
-			if(rowBuffer[1] == second[j])
+			if(rowBuffer.x == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
@@ -256,7 +250,7 @@ __global__ void longPhase(
 			}
 
 			matchMismatch = values.mismatch;
-			if(rowBuffer[2] == second[j])
+			if(rowBuffer.y == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
@@ -270,7 +264,7 @@ __global__ void longPhase(
 			}
 
 			matchMismatch = values.mismatch;
-			if(rowBuffer[3] == second[j])
+			if(rowBuffer.z == second[j])
 				matchMismatch = values.match;
 
 			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
@@ -410,15 +404,8 @@ int main(int argc, char *argv[]) {
     		pSecond->getLength() * sizeof(char)
     		);
 
-    HorizontalBuffer hbuffer;
-    hbuffer.up = (int2 *) cudaGetSpaceAndSet(pSecond->getLength() * sizeof(int2), 0);
-
-    VerticalBuffer vbuffer;
-    vbuffer.diagonal = (int *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int), 0);
-    vbuffer.left0 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
-    vbuffer.left1 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
-    vbuffer.left2 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
-    vbuffer.left3 = (int2 *) cudaGetSpaceAndSet(config.blocks * config.threads * sizeof(int2), 0);
+    GlobalBuffer buffer;
+    initGlobalBuffer(&buffer, pSecond->getLength(), config);
 
 	int D = config.blocks + ceil(((double) pFirst->getLength()) / (ALPHA * config.threads)) - 1;
 
@@ -432,8 +419,8 @@ int main(int argc, char *argv[]) {
     for(int dk = 0; dk < D + config.blocks; dk++) {
     	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
     			dk,
-    			hbuffer,
-    			vbuffer,
+    			buffer.hBuffer,
+    			buffer.vBuffer,
     			devFirst,
     			pFirst->getLength(),
     			devSecond,
@@ -445,8 +432,8 @@ int main(int argc, char *argv[]) {
     	safeAPIcall(cudaDeviceSynchronize());
 		longPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
 				dk,
-				hbuffer,
-				vbuffer,
+    			buffer.hBuffer,
+    			buffer.vBuffer,
 				devFirst,
 				pFirst->getLength(),
 				devSecond,
@@ -478,12 +465,8 @@ int main(int argc, char *argv[]) {
     safeAPIcall(cudaFree(devScore));
     safeAPIcall(cudaFree(devFirst));
     safeAPIcall(cudaFree(devSecond));
-    safeAPIcall(cudaFree(hbuffer.up));
-    safeAPIcall(cudaFree(vbuffer.diagonal));
-    safeAPIcall(cudaFree(vbuffer.left0));
-    safeAPIcall(cudaFree(vbuffer.left1));
-    safeAPIcall(cudaFree(vbuffer.left2));
-    safeAPIcall(cudaFree(vbuffer.left3));
+
+    freeGlobalBuffer(&buffer);
 
     free(score);
 

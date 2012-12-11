@@ -88,6 +88,37 @@ void *cudaGetDeviceCopy(void *src, int size) {
 	return devicePointer;
 }
 
+void initVerticalBuffer(VerticalBuffer *vBuffer, LaunchConfig config) {
+	vBuffer->diagonal = (int *) cudaGetSpaceAndSet(
+			config.blocks * config.threads * sizeof(int), 0);
+    vBuffer->left0 = (int2 *) cudaGetSpaceAndSet(
+    		config.blocks * config.threads * sizeof(int2), 0);
+	vBuffer->left1 = (int2 *) cudaGetSpaceAndSet(
+			config.blocks * config.threads * sizeof(int2), 0);
+	vBuffer->left2 = (int2 *) cudaGetSpaceAndSet(
+			config.blocks * config.threads * sizeof(int2), 0);
+	vBuffer->left3 = (int2 *) cudaGetSpaceAndSet(
+			config.blocks * config.threads * sizeof(int2), 0);
+}
+
+void freeVerticalBuffer(VerticalBuffer *vBuffer) {
+	safeAPIcall(cudaFree(vBuffer->diagonal));
+	safeAPIcall(cudaFree(vBuffer->left0));
+	safeAPIcall(cudaFree(vBuffer->left1));
+	safeAPIcall(cudaFree(vBuffer->left2));
+	safeAPIcall(cudaFree(vBuffer->left3));
+}
+
+void initGlobalBuffer(GlobalBuffer *buffer, int secondLength, LaunchConfig config) {
+	initVerticalBuffer(&buffer->vBuffer, config);
+	buffer->hBuffer.up = (int2 *) cudaGetSpaceAndSet(secondLength * sizeof(int2), 0);
+}
+
+void freeGlobalBuffer(GlobalBuffer *buffer) {
+	freeVerticalBuffer(&buffer->vBuffer);
+    safeAPIcall(cudaFree(buffer->hBuffer.up));
+}
+
 LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 	LaunchConfig config;
 	
@@ -181,7 +212,7 @@ void printLaunchConfig(LaunchConfig config) {
 	printf("Launch configuration:\n");
 	printf("\t>Blocks: %d\n", config.blocks);
 	printf("\t>Threads: %d\n", config.threads);
-	printf("\t>Shared Memory: %d Bytes\n", config.sharedMemSize);
+	printf("\t>Shared Memory: %d Bytes per block\n", config.sharedMemSize);
 }
 
 void printCardInfo(CUDAcard gpu) {
