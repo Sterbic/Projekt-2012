@@ -1,3 +1,7 @@
 FLAGS = -arch=sm_20
-SWalign: SWutils.cpp main.cu FASTA.cpp
+
+SRC_DIR = src
+SRC := $(wildcard $(SRC_DIR)/*.cpp $(SRC_DIR)/*.cu)
+
+SWalign: $(SRC)
 	nvcc -o $@ $+ $(FLAGS)
