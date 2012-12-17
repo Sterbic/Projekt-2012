@@ -117,16 +117,7 @@ __global__ void shortPhase(
 				score[scoreIndex].row = i + 3;
 				score[scoreIndex].column = j;
 			}
-		}
 
-	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-			printK(&iBuffer);
-		} */
-
-		__syncthreads();
-
-		if (i >= 0 && i < firstLength) {
 			if(threadIdx.x < blockDim.x - 1) {
 				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
 				iHbuffer[threadIdx.x + 1].y = iBuffer.curr3.z;
@@ -276,16 +267,7 @@ __global__ void longPhase(
 				score[scoreIndex].row = i + 3;
 				score[scoreIndex].column = j;
 			}
-		}
 
-	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-			printK(&iBuffer);
-		}*/
-
-		__syncthreads();
-
-		if (i >= 0 && i < firstLength) {
 			if(threadIdx.x < blockDim.x - 1) {
 				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
 				iHbuffer[threadIdx.x + 1].y = iBuffer.curr3.z;
@@ -295,6 +277,11 @@ __global__ void longPhase(
 				hbuffer.up[j].y = iBuffer.curr3.z;
 			}
 		}
+
+	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
+			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
+			printK(&iBuffer);
+		}*/
 
 		j++;
 
