@@ -9,12 +9,6 @@
 #include "SWutils.h"
 #include "SWkernel.cuh"
 
-typedef struct {
-	int H;
-	int E;
-	int F;
-} element;
-
 __global__ void shortPhase(
 		int dk,
 		HorizontalBuffer hbuffer,
@@ -28,8 +22,6 @@ __global__ void shortPhase(
 		) {
 
 	extern __shared__ int2 iHbuffer[];
-	//int tid = 1;
-	//int bl = 0;
 
 	int i = getRow(dk);
 	int j = getColumn(secondLength);
@@ -187,9 +179,6 @@ __global__ void longPhase(
 
 	int C = secondLength / gridDim.x;
 
-	//int tid = 1;
-	//int bl = 1;
-
 	int i = getRow(dk);
 	int j = getColumn(secondLength) + blockDim.x;
 
@@ -320,6 +309,8 @@ __global__ void longPhase(
 
 int main(int argc, char *argv[]) {
     printf("### Welcome to SWalign v%s\n\n", VERSION);
+    cudaTimer timer;
+    timer.start();
 
     if (argc != 7) {
         printf("Expected 6 input arguments, not %d!\n\n", argc - 1);
@@ -385,8 +376,8 @@ int main(int argc, char *argv[]) {
 	safeAPIcall(cudaFuncSetCacheConfig(shortPhase, cudaFuncCachePreferShared));
 	safeAPIcall(cudaFuncSetCacheConfig(longPhase, cudaFuncCachePreferShared));
 	
-    cudaTimer timer;
-    timer.start();
+    cudaTimer kernelTimer;
+    kernelTimer.start();
 
     for(int dk = 0; dk < D + config.blocks; dk++) {
     	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
@@ -412,12 +403,12 @@ int main(int argc, char *argv[]) {
     			querry.getSecond()->getPaddedLength(),
 				values,
 				devScore
-		);
+				);
 
 		safeAPIcall(cudaDeviceSynchronize());
     }
     
-    timer.stop();
+    kernelTimer.stop();
 
     safeAPIcall(cudaMemcpy(score, devScore, scoreSize, cudaMemcpyDeviceToHost));
 	for(int i = 0; i < config.blocks * config.threads; i++) {
@@ -428,9 +419,12 @@ int main(int argc, char *argv[]) {
 		}
     }
 
+	timer.stop();
+
     printf("DONE\n\n");
 
-    printf("Kernel executed in %f s\n", timer.getElapsedTimeMillis() / 1000);
+    printf("Kernel executed in %f s\n", kernelTimer.getElapsedTimeMillis() / 1000);
+    printf("Application executed in %f s\n", timer.getElapsedTimeMillis() / 1000);
 
     printf("\nAlignment score: %d at [%d, %d]\n", max.score, max.row + 1, max.column + 1);
 
