@@ -10,6 +10,8 @@
 
 #include <driver_types.h>
 
+#include "FASTA.h"
+
 typedef struct {
 	int blocks;
 	int threads;
@@ -35,6 +37,8 @@ typedef struct {
 	int cudaCores;
 } CUDAcard;
 
+void exitWithMsg(const char *msg, int exitCode);
+
 class cudaTimer {
 private:
     cudaEvent_t _start;
@@ -52,6 +56,35 @@ public:
     float getElapsedTimeMillis();
 };
 
+class SWquerry {
+private:
+	FASTAsequence *first;
+	FASTAsequence *second;
+	char *deviceFirst;
+	char *deviceSecond;
+	bool prepared;
+
+	void checkPrepared() {
+		if(!prepared)
+			exitWithMsg("SWquerry was not ready when a get method was invoked.", -1);
+	}
+
+public:
+	SWquerry(FASTAsequence *first, FASTAsequence *second);
+
+	~SWquerry();
+
+	void prepare(LaunchConfig config);
+
+	char *getDevFirst();
+
+	char *getDevSecond();
+
+	FASTAsequence *getFirst();
+
+	FASTAsequence *getSecond();
+};
+
 LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu);
 
 void printLaunchConfig(LaunchConfig config);
@@ -59,8 +92,6 @@ void printLaunchConfig(LaunchConfig config);
 CUDAcard findBestDevice();
 
 void printCardInfo(CUDAcard gpu);
-
-void exitWithMsg(const char *msg, int exitCode);
 
 void safeAPIcall(cudaError_t err);
 

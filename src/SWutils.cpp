@@ -75,6 +75,63 @@ float cudaTimer::getElapsedTimeMillis() {
 	return time;
 }
 
+SWquerry::SWquerry(FASTAsequence *first, FASTAsequence *second) {
+	if(first == NULL || second == NULL)
+		exitWithMsg("Input for SWquerry must not be NULL.", -1);
+
+	this->first = first;
+	this->second = second;
+	prepared = false;
+}
+
+void SWquerry::prepare(LaunchConfig config) {
+	if(first->getLength() < second->getLength()) {
+		FASTAsequence *temp = first;
+		first = second;
+		second = temp;
+	}
+
+    if(!first->doPaddingForRows() || !second->doPaddingForColumns(config.blocks))
+    	exitWithMsg("An error has occured while applying padding on input sequences.", -1);
+
+    deviceFirst = (char *) cudaGetDeviceCopy(
+        		first->getSequence(),
+        		first->getPaddedLength() * sizeof(char)
+        		);
+
+    deviceSecond = (char *) cudaGetDeviceCopy(
+        		second->getSequence(),
+        		second->getPaddedLength() * sizeof(char)
+        		);
+
+    prepared = true;
+}
+
+SWquerry::~SWquerry() {
+	safeAPIcall(cudaFree(deviceFirst));
+	safeAPIcall(cudaFree(deviceSecond));
+}
+
+char *SWquerry::getDevFirst() {
+	checkPrepared();
+	return deviceFirst;
+}
+
+char *SWquerry::getDevSecond() {
+	checkPrepared();
+	return deviceSecond;
+}
+
+FASTAsequence *SWquerry::getFirst() {
+	checkPrepared();
+	return first;
+}
+
+FASTAsequence *SWquerry::getSecond() {
+	checkPrepared();
+	return second;
+}
+
 void *cudaGetSpaceAndSet(int size, int setTo) {
 	void *devPointer = NULL;
 	safeAPIcall(cudaMalloc(&devPointer, size));

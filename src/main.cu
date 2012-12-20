@@ -328,8 +328,6 @@ int main(int argc, char *argv[]) {
 
     FASTAsequence first(argv[1]);
     FASTAsequence second(argv[2]);
-    FASTAsequence *pFirst = &first;
-    FASTAsequence *pSecond = &second;
 
     printf("> Loading input sequences... ");
     if(!first.load() || !second.load())
@@ -339,12 +337,6 @@ int main(int argc, char *argv[]) {
 	
     printf("First sequence of length %d:\n%s\n\n", first.getLength(), first.getSequenceName());
     printf("Second sequence of length %d:\n%s\n\n", second.getLength(), second.getSequenceName());
-
-    if(second.getLength() > first.getLength()) {
-    	FASTAsequence *temp = pFirst;
-    	pFirst = pSecond;
-    	pSecond = temp;
-    }
 
     printf("> Looking for CUDA capable cards... ");
     CUDAcard bestGpu = findBestDevice();
@@ -356,13 +348,16 @@ int main(int argc, char *argv[]) {
     printf("\n");
 
     printf("> Initializing launch configuration... ");
-    LaunchConfig config = getLaunchConfig(pSecond->getLength(), bestGpu);
+    LaunchConfig config = getLaunchConfig(
+    		min(first.getLength(), second.getLength()),
+    		bestGpu);
     printf("DONE\n\n");
     printLaunchConfig(config);
-    printf("\n");
 
-    if(!pFirst->doPaddingForRows() || !pSecond->doPaddingForColumns(config.blocks))
-    	exitWithMsg("An error has occured while applying padding on input sequences.", -1);
+    printf("\n> Preparing SWquerry... ");
+    SWquerry querry(&first, &second);
+    querry.prepare(config);
+    printf("DONE\n\n");
 
     scoring values = initScoringValues(argv[3], argv[4], argv[5], argv[6]);
 
@@ -381,20 +376,11 @@ int main(int argc, char *argv[]) {
     
 	alignmentScore *devScore = (alignmentScore *) cudaGetSpaceAndSet(scoreSize, 0);
 
-    char *devFirst = (char *) cudaGetDeviceCopy(
-    		pFirst->getSequence(),
-    		pFirst->getLength() * sizeof(char)
-    		);
-
-    char *devSecond = (char *) cudaGetDeviceCopy(
-    		pSecond->getSequence(),
-    		pSecond->getLength() * sizeof(char)
-    		);
-
     GlobalBuffer buffer;
-    initGlobalBuffer(&buffer, pSecond->getLength(), config);
+    initGlobalBuffer(&buffer, querry.getSecond()->getPaddedLength(), config);
 
-	int D = config.blocks + ceil(((double) pFirst->getLength()) / (ALPHA * config.threads)) - 1;
+	int D = config.blocks + ceil(((double) querry.getFirst()->getPaddedLength())
+			/ (ALPHA * config.threads)) - 1;
 
 	safeAPIcall(cudaFuncSetCacheConfig(shortPhase, cudaFuncCachePreferShared));
 	safeAPIcall(cudaFuncSetCacheConfig(longPhase, cudaFuncCachePreferShared));
@@ -402,16 +388,15 @@ int main(int argc, char *argv[]) {
     cudaTimer timer;
     timer.start();
 
-    // D + config.blocks
     for(int dk = 0; dk < D + config.blocks; dk++) {
     	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
     			dk,
     			buffer.hBuffer,
     			buffer.vBuffer,
-    			devFirst,
-    			pFirst->getLength(),
-    			devSecond,
-    			pSecond->getLength(),
+    			querry.getDevFirst(),
+    			querry.getFirst()->getPaddedLength(),
+    			querry.getDevSecond(),
+    			querry.getSecond()->getPaddedLength(),
     			values,
     			devScore
     			);
@@ -421,10 +406,10 @@ int main(int argc, char *argv[]) {
 				dk,
     			buffer.hBuffer,
     			buffer.vBuffer,
-				devFirst,
-				pFirst->getLength(),
-				devSecond,
-				pSecond->getLength(),
+    			querry.getDevFirst(),
+    			querry.getFirst()->getPaddedLength(),
+    			querry.getDevSecond(),
+    			querry.getSecond()->getPaddedLength(),
 				values,
 				devScore
 		);
@@ -450,8 +435,6 @@ int main(int argc, char *argv[]) {
     printf("\nAlignment score: %d at [%d, %d]\n", max.score, max.row + 1, max.column + 1);
 
     safeAPIcall(cudaFree(devScore));
-    safeAPIcall(cudaFree(devFirst));
-    safeAPIcall(cudaFree(devSecond));
 
     freeGlobalBuffer(&buffer);
 

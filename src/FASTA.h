@@ -13,7 +13,8 @@ private:
 	char *fileName;
 	char *sequenceName;
 	char *sequence;
-	long length;
+	int length;
+	int paddedLength;
 
 	bool doPadding(int padTo, char withSymb);
 
@@ -27,6 +28,8 @@ public:
 	char *getSequence();
 
 	int getLength();
+
+	int getPaddedLength();
 
 	bool load();
 

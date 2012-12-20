@@ -36,6 +36,10 @@ int FASTAsequence::getLength() {
 	return length;
 }
 
+int FASTAsequence::getPaddedLength() {
+	return paddedLength;
+}
+
 bool FASTAsequence::load() {
 	FILE *f = fopen(fileName, "r");
 
@@ -74,6 +78,7 @@ bool FASTAsequence::load() {
 	}
 
 	length = i;
+	paddedLength = length;
 
 	fclose(f);
 
@@ -100,7 +105,7 @@ bool FASTAsequence::doPadding(int padTo, char withSymb) {
 	}
 	sequence[length + padding] = '\0';
 
-	length += padding;
+	paddedLength += padding;
 
 	return true;
 }
