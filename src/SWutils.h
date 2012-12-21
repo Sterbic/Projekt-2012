@@ -8,6 +8,7 @@
 #ifndef SWUTILS_H_
 #define SWUTILS_H_
 
+#include <cuda.h>
 #include <driver_types.h>
 
 #include "FASTA.h"
@@ -60,8 +61,8 @@ class SWquerry {
 private:
 	FASTAsequence *first;
 	FASTAsequence *second;
-	char *deviceFirst;
-	char *deviceSecond;
+	__align__(16) char *deviceFirst;
+	__align__(16) char *deviceSecond;
 	bool prepared;
 
 	void checkPrepared() {
