@@ -444,8 +444,10 @@ int main(int argc, char *argv[]) {
 
     printf("DONE\n\n");
 
+    double gcups = first.getLength() / 1e6 * second.getLength() / (timer.getElapsedTimeMillis());
     printf("Kernel executed in %f s\n", kernelTimer.getElapsedTimeMillis() / 1000);
     printf("Application executed in %f s\n", timer.getElapsedTimeMillis() / 1000);
+    printf("Cell updates per second: %lf GCUPS\n", gcups);
 
     printf("\nAlignment score: %d at [%d, %d]\n\n", max.score, max.row + 1, max.column + 1);
 

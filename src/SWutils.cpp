@@ -179,7 +179,7 @@ void freeGlobalBuffer(GlobalBuffer *buffer) {
 LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 	LaunchConfig config;
 	
-	config.blocks = gpu.cudaCores / 4;
+	config.blocks = gpu.cudaCores / 2;
 	config.threads = gpu.maxThreadsPerBlock / 8;
 	
 	if (config.threads * config.blocks * 2 > shorterSeqLength)
