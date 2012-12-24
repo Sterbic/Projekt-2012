@@ -75,7 +75,7 @@ float cudaTimer::getElapsedTimeMillis() {
 	return time;
 }
 
-SWquerry::SWquerry(FASTAsequence *first, FASTAsequence *second) {
+SWquery::SWquery(FASTAsequence *first, FASTAsequence *second) {
 	if(first == NULL || second == NULL)
 		exitWithMsg("Input for SWquerry must not be NULL.", -1);
 
@@ -84,7 +84,7 @@ SWquerry::SWquerry(FASTAsequence *first, FASTAsequence *second) {
 	prepared = false;
 }
 
-void SWquerry::prepare(LaunchConfig config) {
+void SWquery::prepare(LaunchConfig config) {
 	if(first->getLength() < second->getLength()) {
 		FASTAsequence *temp = first;
 		first = second;
@@ -107,27 +107,27 @@ void SWquerry::prepare(LaunchConfig config) {
     prepared = true;
 }
 
-SWquerry::~SWquerry() {
+SWquery::~SWquery() {
 	safeAPIcall(cudaFree(deviceFirst));
 	safeAPIcall(cudaFree(deviceSecond));
 }
 
-char *SWquerry::getDevFirst() {
+char *SWquery::getDevFirst() {
 	checkPrepared();
 	return deviceFirst;
 }
 
-char *SWquerry::getDevSecond() {
+char *SWquery::getDevSecond() {
 	checkPrepared();
 	return deviceSecond;
 }
 
-FASTAsequence *SWquerry::getFirst() {
+FASTAsequence *SWquery::getFirst() {
 	checkPrepared();
 	return first;
 }
 
-FASTAsequence *SWquerry::getSecond() {
+FASTAsequence *SWquery::getSecond() {
 	checkPrepared();
 	return second;
 }
@@ -223,6 +223,21 @@ int _ConvertSMVer2Cores(int major, int minor) {
     }
 
     return -1;
+}
+
+
+alignmentScore getMaxScore(alignmentScore *score, int n) {
+	alignmentScore max;
+	max.score = -1;
+	max.row = -1;
+	max.column = -1;
+
+	for(int i = 0; i < n; i++) {
+		if(score[i].score > max.score)
+			max = score[i];
+	}
+
+	return max;
 }
 
 CUDAcard findBestDevice() {

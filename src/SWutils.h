@@ -8,7 +8,6 @@
 #ifndef SWUTILS_H_
 #define SWUTILS_H_
 
-#include <cuda.h>
 #include <driver_types.h>
 
 #include "FASTA.h"
@@ -57,12 +56,12 @@ public:
     float getElapsedTimeMillis();
 };
 
-class SWquerry {
+class SWquery {
 private:
 	FASTAsequence *first;
 	FASTAsequence *second;
-	__align__(16) char *deviceFirst;
-	__align__(16) char *deviceSecond;
+	char *deviceFirst;
+	char *deviceSecond;
 	bool prepared;
 
 	void checkPrepared() {
@@ -71,9 +70,9 @@ private:
 	}
 
 public:
-	SWquerry(FASTAsequence *first, FASTAsequence *second);
+	SWquery(FASTAsequence *first, FASTAsequence *second);
 
-	~SWquerry();
+	~SWquery();
 
 	void prepare(LaunchConfig config);
 
@@ -103,6 +102,8 @@ void *cudaGetDeviceCopy(void *src, int size);
 void initGlobalBuffer(GlobalBuffer *buffer, int secondLength, LaunchConfig config);
 
 void freeGlobalBuffer(GlobalBuffer *buffer);
+
+alignmentScore getMaxScore(alignmentScore *score, int n);
 
 scoring initScoringValues(const char *match, const char *mismath,
 		const char *first, const char *extension);
