@@ -2,6 +2,7 @@ FLAGS = -arch=sm_20
 
 SRC_DIR = src
 SRC := $(wildcard $(SRC_DIR)/*.cpp $(SRC_DIR)/*.cu)
+HEADERS := $(wildcard $(SRC_DIR)/*.h $(SRC_DIR)/*.cuh)
 
-SWalign: $(SRC)
-	nvcc -o $@ $+ $(FLAGS)
+SWalign: $(HEADERS) $(SRC)
+	nvcc -o $@ $(SRC) $(FLAGS)

@@ -1,0 +1,44 @@
+### Welcome to SWalign v0.5.3
+
+> Loading input sequences... DONE
+
+First sequence of length 46944323:
+gi|51511750|ref|NC_000021.7|NC_000021 Homo sapiens chromosome 21, reference assembly, complete sequence
+
+Second sequence of length 32799110:
+gi|49619244|dbj|BA000046.3| Pan troglodytes DNA, chromosome 22, complete sequence
+
+> Looking for CUDA capable cards... DONE
+
+Found 1 CUDA capable GPU(s), picked GPU number 1:
+	>Name: GeForce GTX 570
+	>CUDA Capability: 2.0
+	>Global memory: 1280 MBytes
+	>Multiprocessors: 15
+	>CUDA cores: 480
+
+> Initializing launch configuration... DONE
+
+Launch configuration:
+	>Blocks: 240
+	>Threads: 128
+	>Shared Memory: 1024 Bytes per block
+
+> Preparing SWquery... DONE
+
+> Initializing scoring values... DONE
+
+Scoring values:
+	>Match: 1
+	>Mismatch: -3
+	>First gap: -5
+	>Gap extension: -2
+
+> Starting alignment process... DONE
+
+Kernel executed in 54913.160156 s
+Application executed in 54920.773438 s
+Cell updates per second: 28.035513 GCUPS
+
+Alignment score: 27206434 at [46919080, 32718231]
+
