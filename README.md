@@ -1,4 +1,9 @@
-Projekt-2012
+SWalign
 ============
 
-Projekt iz programske potpore 2012
+SWalign is a CUDA parallelized sequence alignment software implementig Smith-Waterman local alignment algorithm.
+
+Authors:
+Luka Sterbic, luka.sterbic@fer.hr
+Marija Mikulic, marija.mikulic@fer.hr
+
