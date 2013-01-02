@@ -36,21 +36,11 @@ __global__ void shortPhase(
 		iHbuffer[0] = hbuffer.up[j];
 
 	char4 rowBuffer;
-//	rowBuffer.w = tex1Dfetch(texFirst, i);
-//	rowBuffer.x = tex1Dfetch(texFirst, i + 1);
-//	rowBuffer.y = tex1Dfetch(texFirst, i + 2);
-//	rowBuffer.z = tex1Dfetch(texFirst, i + 3);
 	getRowBuffer(i, first, &rowBuffer);
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
 		initK(&iBuffer, i, j, &hbuffer, &vbuffer);
-
-/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-		printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-		printK(&iBuffer);
-		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
-	}*/
 
 	int3 localMax;
 	localMax.x = 0;
@@ -132,9 +122,6 @@ __global__ void shortPhase(
 
 		__syncthreads();
 
-	/*	if(threadIdx.x == tid && blockIdx.x == bl)
-			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);*/
-
 		if(j == secondLength) {
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
@@ -151,12 +138,6 @@ __global__ void shortPhase(
 
 			pushForwardK(&iBuffer, newUp);
 		}
-
-/*		if(threadIdx.x == tid && blockIdx.x == bl) {
-			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-			printK(&iBuffer);
-			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
-		}*/
 	}
 
 	if (i >= 0 && i < firstLength) {
@@ -171,10 +152,6 @@ __global__ void shortPhase(
 		score[index].row = localMax.y;
 		score[index].column = localMax.z;
 	}
-
-/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
-	}*/
 }
 
 __global__ void longPhase(
@@ -196,22 +173,11 @@ __global__ void longPhase(
 	int j = getColumn(secondLength) + blockDim.x;
 
 	char4 rowBuffer;
-
-	//rowBuffer.w = tex1Dfetch(texFirst, i);
-	//rowBuffer.x = tex1Dfetch(texFirst, i + 1);
-	//rowBuffer.y = tex1Dfetch(texFirst, i + 2);
-	//rowBuffer.z = tex1Dfetch(texFirst, i + 3);
 	getRowBuffer(i, first, &rowBuffer);
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
 		initK(&iBuffer, i, j, &hbuffer, &vbuffer);
-
-/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-		printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-		printK(&iBuffer);
-		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
-	} */
 
 	int3 localMax;
 	localMax.x = 0;
@@ -289,17 +255,9 @@ __global__ void longPhase(
 			}
 		}
 
-	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-			printK(&iBuffer);
-		}*/
-
 		j++;
 
 		__syncthreads();
-
-	/*	if(threadIdx.x == tid && blockIdx.x == bl)
-			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);*/
 
 		int2 newUp;
 		if(threadIdx.x > 0)
@@ -308,12 +266,6 @@ __global__ void longPhase(
 			newUp = hbuffer.up[j];
 
 		pushForwardK(&iBuffer, newUp);
-
-	/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-			printf("blockIdx.x = %d, threadIdx.x = %d, i = %d, j = %d\n", blockIdx.x, threadIdx.x, i, j);
-			printK(&iBuffer);
-			printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
-		}*/
 	}
 
 	if (i >= 0 && i < firstLength) {
@@ -328,10 +280,6 @@ __global__ void longPhase(
 		score[index].row = localMax.y;
 		score[index].column = localMax.z;
 	}
-
-/*	if(threadIdx.x == tid && blockIdx.x == bl) {
-		printBuffers(&hbuffer, &vbuffer, iHbuffer, secondLength);
-	}*/
 }
 
 int main(int argc, char *argv[]) {
