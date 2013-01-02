@@ -10,7 +10,7 @@
 
 #include <vector_types.h>
 
-#define VERSION "0.5.3"
+#define VERSION "0.5.4"
 #define ALPHA 4
 
 typedef struct {
