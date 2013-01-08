@@ -84,6 +84,28 @@ __device__ void initK(K *k, int i, int j, int2 * lHbuffer, VerticalBuffer *vbuff
 	k->up = lHbuffer[threadIdx.x];
 }
 
+__device__ void initReverseK(K *k, int i, int j, HorizontalBuffer *hbuffer, VerticalBuffer *vbuffer) {
+	int index = (i / ALPHA) % (blockDim.x * gridDim.x);
+	k->diagonal = vbuffer->diagonal[index];
+	k->left0 = vbuffer->left0[index];
+	k->left1 = vbuffer->left1[index];
+	k->left2 = vbuffer->left2[index];
+	k->left3 = vbuffer->left3[index]; // NW inicijalizacija
+
+	k->up = hbuffer->up[j];
+}
+
+__device__ void initReverseK(K *k, int i, int j, int2 * lHbuffer, VerticalBuffer *vbuffer) {
+	int index = (i / ALPHA) % (blockDim.x * gridDim.x);
+	k->diagonal = vbuffer->diagonal[index];
+	k->left0 = vbuffer->left0[index];
+	k->left1 = vbuffer->left1[index];
+	k->left2 = vbuffer->left2[index];
+	k->left3 = vbuffer->left3[index];// NW inicijalizacija
+
+	k->up = lHbuffer[threadIdx.x];
+}
+
 __device__ void pushForwardK(K *k, int2 newUp) {
 	k->left0.x = k->curr0.x;
 	k->left1.x = k->curr1.x;
@@ -108,6 +130,13 @@ __device__ void updateVerticalBuffer(K *k, VerticalBuffer *vbuffer, int i) {
 	vbuffer->left1[index] = k->left1;
 	vbuffer->left2[index] = k->left2;
 	vbuffer->left3[index] = k->left3;
+}
+
+__device__ void dumpToVBusOut(int2 *vBusOut, K *iBuffer, int i) {
+	vBusOut[i] = make_int2(iBuffer->curr0.x, iBuffer->curr0.y);
+	vBusOut[i + 1] = make_int2(iBuffer->curr1.x, iBuffer->curr1.y);
+	vBusOut[i + 2] = make_int2(iBuffer->curr2.x, iBuffer->curr2.y);
+	vBusOut[i + 3] = make_int2(iBuffer->curr3.x, iBuffer->curr3.y);
 }
 
 __device__ int getColumn(int secondLength) {

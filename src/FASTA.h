@@ -13,9 +13,11 @@ private:
 	char *fileName;
 	char *sequenceName;
 	char *sequence;
+	char *reverseSequence;
 	int length;
 	int paddedLength;
 
+	void createReverse();
 	bool doPadding(int padTo, char withSymb);
 
 public:
@@ -32,6 +34,8 @@ public:
 	int getPaddedLength();
 
 	bool load();
+
+	char *getReversedSequence();
 
 	bool doPaddingForColumns(int blocks);
 
