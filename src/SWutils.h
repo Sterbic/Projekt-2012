@@ -37,6 +37,13 @@ typedef struct {
 	int cudaCores;
 } CUDAcard;
 
+typedef struct {
+	bool gap;
+	int score;
+	int column;
+	int row;
+} TracebackScore;
+
 void exitWithMsg(const char *msg, int exitCode);
 
 class cudaTimer {
@@ -93,7 +100,7 @@ CUDAcard findBestDevice();
 
 void printCardInfo(CUDAcard gpu);
 
-void safeAPIcall(cudaError_t err);
+void safeAPIcall(cudaError_t err, int line);
 
 void *cudaGetSpaceAndSet(int size, int setTo);
 
@@ -102,6 +109,13 @@ void *cudaGetDeviceCopy(void *src, int size);
 void initGlobalBuffer(GlobalBuffer *buffer, int secondLength, LaunchConfig config);
 
 void freeGlobalBuffer(GlobalBuffer *buffer);
+
+void initVerticalBuffer(VerticalBuffer *vBuffer, LaunchConfig config);
+
+void freeVerticalBuffer(VerticalBuffer *vBuffer);
+
+TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
+		int2 *vBusOut, int2 *specialRow);
 
 alignmentScore getMaxScore(alignmentScore *score, int n);
 

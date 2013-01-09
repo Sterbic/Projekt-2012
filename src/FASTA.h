@@ -17,7 +17,7 @@ private:
 	int length;
 	int paddedLength;
 
-	void createReverse();
+	void createReverse(int maxIndex);
 	bool doPadding(int padTo, char withSymb);
 
 public:
@@ -35,7 +35,7 @@ public:
 
 	bool load();
 
-	char *getReversedSequence();
+	char *getReversedSequence(int maxIndex);
 
 	bool doPaddingForColumns(int blocks);
 

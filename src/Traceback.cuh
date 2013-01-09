@@ -35,7 +35,7 @@ __global__ void tracebackShort(
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
-		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer);
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
 
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
 
@@ -105,7 +105,7 @@ __global__ void tracebackShort(
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
 			getRowBuffer(i, first, &rowBuffer);
-			initReverseK(&iBuffer, i, j, iHbuffer, &vbuffer);
+			initReverseK(&iBuffer, i, j, iHbuffer, &vbuffer, values, gap);
 		}
 		else {
 			int2 newUp;
@@ -150,7 +150,7 @@ __global__ void tracebackLong(
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
-		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer);
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
 
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
 
@@ -215,6 +215,219 @@ __global__ void tracebackLong(
 
 		if(j == secondLength)
 			dumpToVBusOut(vBusOut, &iBuffer, i);
+
+		int2 newUp;
+		if(threadIdx.x > 0)
+			newUp = iHbuffer[threadIdx.x];
+		else
+			newUp = hbuffer.up[j];
+
+		pushForwardK(&iBuffer, newUp);
+	}
+
+	if (i >= 0 && i < firstLength) {
+		updateVerticalBuffer(&iBuffer, &vbuffer, i);
+		if(threadIdx.x < blockDim.x -1)
+			hbuffer.up[j - 1] = iHbuffer[threadIdx.x + 1];
+	}
+}
+
+/* ####################################################################### */
+
+__global__ void tracebackLastShort(
+		int dk,
+		HorizontalBuffer hbuffer,
+		VerticalBuffer vbuffer,
+		char *first,
+		int firstLength,
+		char *second,
+		int secondLength,
+		scoring values,
+		bool gap,
+		TracebackScore *last
+		) {
+
+	extern __shared__ int2 iHbuffer[];
+
+	int i = getRow(dk);
+	int j = getColumn(secondLength);
+
+	if(j < 0) {
+		i -= ALPHA * gridDim.x * blockDim.x;
+		j += secondLength;
+	}
+
+	if(threadIdx.x == 0)
+		iHbuffer[0] = hbuffer.up[j];
+
+	char4 rowBuffer;
+	getRowBuffer(i, first, &rowBuffer);
+
+	K iBuffer;
+	if(i >= 0 && i < firstLength)
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
+
+	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
+
+		__syncthreads();
+
+		if(i >= 0 && i < firstLength) {
+			char columnBase = second[j];
+
+			int matchMismatch = values.mismatch;
+			if(rowBuffer.w == columnBase)
+				matchMismatch = values.match;
+
+
+			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
+			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
+			iBuffer.curr0.x = max(iBuffer.curr0.y, max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer.x == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
+			iBuffer.curr1.z = max(iBuffer.curr0.z + values.extension, iBuffer.curr0.x + values.first);
+			iBuffer.curr1.x = max(iBuffer.curr1.y, max(iBuffer.curr1.z, iBuffer.left0.x + matchMismatch));
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer.y == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
+			iBuffer.curr2.z = max(iBuffer.curr1.z + values.extension, iBuffer.curr1.x + values.first);
+			iBuffer.curr2.x = max(iBuffer.curr2.y, max(iBuffer.curr2.z, iBuffer.left1.x + matchMismatch));
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer.z == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
+			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
+			iBuffer.curr3.x = max(iBuffer.curr3.y, max(iBuffer.curr3.z, iBuffer.left2.x + matchMismatch));
+
+			checkStartPoint(&iBuffer, last);
+
+			if(threadIdx.x < blockDim.x - 1) {
+				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
+				iHbuffer[threadIdx.x + 1].y = iBuffer.curr3.z;
+			}
+			else {
+				hbuffer.up[j].x = iBuffer.curr3.x;
+				hbuffer.up[j].y = iBuffer.curr3.z;
+			}
+		}
+
+		j++;
+
+		__syncthreads();
+
+		if(j == secondLength) {
+			j = 0;
+			i += gridDim.x * ALPHA * blockDim.x;
+			getRowBuffer(i, first, &rowBuffer);
+			initReverseK(&iBuffer, i, j, iHbuffer, &vbuffer, values, gap);
+		}
+		else {
+			int2 newUp;
+			if(threadIdx.x > 0)
+				newUp = iHbuffer[threadIdx.x];
+			else
+				newUp = hbuffer.up[j];
+
+			pushForwardK(&iBuffer, newUp);
+		}
+	}
+
+	if (i >= 0 && i < firstLength) {
+		updateVerticalBuffer(&iBuffer, &vbuffer, i);
+		if(threadIdx.x < blockDim.x -1)
+			hbuffer.up[j - 1] = iHbuffer[threadIdx.x + 1];
+	}
+}
+
+__global__ void tracebackLastLong(
+		int dk,
+		HorizontalBuffer hbuffer,
+		VerticalBuffer vbuffer,
+		char *first,
+		int firstLength,
+		char *second,
+		int secondLength,
+		scoring values,
+		bool gap,
+		TracebackScore *last
+		) {
+
+	extern __shared__ int2 iHbuffer[];
+
+	int C = secondLength / gridDim.x;
+
+	int i = getRow(dk);
+	int j = getColumn(secondLength) + blockDim.x;
+
+	char4 rowBuffer;
+	getRowBuffer(i, first, &rowBuffer);
+
+	K iBuffer;
+	if(i >= 0 && i < firstLength)
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
+
+	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
+
+		__syncthreads();
+
+		if(i >= 0 && i < firstLength) {
+			char columnBase = second[j];
+
+			int matchMismatch = values.mismatch;
+			if(rowBuffer.w == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
+			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
+			iBuffer.curr0.x = max(iBuffer.curr0.y, max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer.x == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr1.y = max(iBuffer.left1.y + values.extension, iBuffer.left1.x + values.first);
+			iBuffer.curr1.z = max(iBuffer.curr0.z + values.extension, iBuffer.curr0.x + values.first);
+			iBuffer.curr1.x = max(iBuffer.curr1.y, max(iBuffer.curr1.z, iBuffer.left0.x + matchMismatch));
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer.y == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr2.y = max(iBuffer.left2.y + values.extension, iBuffer.left2.x + values.first);
+			iBuffer.curr2.z = max(iBuffer.curr1.z + values.extension, iBuffer.curr1.x + values.first);
+			iBuffer.curr2.x = max(iBuffer.curr2.y, max(iBuffer.curr2.z, iBuffer.left1.x + matchMismatch));
+
+			matchMismatch = values.mismatch;
+			if(rowBuffer.z == columnBase)
+				matchMismatch = values.match;
+
+			iBuffer.curr3.y = max(iBuffer.left3.y + values.extension, iBuffer.left3.x + values.first);
+			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
+			iBuffer.curr3.x = max(iBuffer.curr3.y, max(iBuffer.curr3.z, iBuffer.left2.x + matchMismatch));
+
+			checkStartPoint(&iBuffer, last);
+
+			if(threadIdx.x < blockDim.x - 1) {
+				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
+				iHbuffer[threadIdx.x + 1].y = iBuffer.curr3.z;
+			}
+			else {
+				hbuffer.up[j].x = iBuffer.curr3.x;
+				hbuffer.up[j].y = iBuffer.curr3.z;
+			}
+		}
+
+		j++;
+
+		__syncthreads();
 
 		int2 newUp;
 		if(threadIdx.x > 0)

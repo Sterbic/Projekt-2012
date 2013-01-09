@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <limits.h>
 #include <cuda.h>
 #include <driver_types.h>
 #include <cuda_runtime_api.h>
@@ -22,9 +23,11 @@ void exitWithMsg(const char *msg, int exitCode) {
 	exit(exitCode);
 }
 
-void safeAPIcall(cudaError_t err) {
-	if(err != cudaSuccess)
+void safeAPIcall(cudaError_t err, int line) {
+	if(err != cudaSuccess) {
+		printf("Error in line %d\n", line);
 		exitWithMsg(cudaGetErrorString(err), -2);
+	}
 }
 
 scoring initScoringValues(const char *match, const char *mismath,
@@ -108,8 +111,8 @@ void SWquery::prepare(LaunchConfig config) {
 }
 
 SWquery::~SWquery() {
-	safeAPIcall(cudaFree(deviceFirst));
-	safeAPIcall(cudaFree(deviceSecond));
+	safeAPIcall(cudaFree(deviceFirst), __LINE__);
+	safeAPIcall(cudaFree(deviceSecond), __LINE__);
 }
 
 char *SWquery::getDevFirst() {
@@ -134,14 +137,14 @@ FASTAsequence *SWquery::getSecond() {
 
 void *cudaGetSpaceAndSet(int size, int setTo) {
 	void *devPointer = NULL;
-	safeAPIcall(cudaMalloc(&devPointer, size));
-	safeAPIcall(cudaMemset(devPointer, setTo, size));
+	safeAPIcall(cudaMalloc(&devPointer, size), __LINE__);
+	safeAPIcall(cudaMemset(devPointer, setTo, size), __LINE__);
 	return devPointer;
 }
 
 void *cudaGetDeviceCopy(void *src, int size) {
 	void *devicePointer = cudaGetSpaceAndSet(size, 0);
-	safeAPIcall(cudaMemcpy(devicePointer, src, size, cudaMemcpyHostToDevice));
+	safeAPIcall(cudaMemcpy(devicePointer, src, size, cudaMemcpyHostToDevice), __LINE__);
 	return devicePointer;
 }
 
@@ -159,11 +162,11 @@ void initVerticalBuffer(VerticalBuffer *vBuffer, LaunchConfig config) {
 }
 
 void freeVerticalBuffer(VerticalBuffer *vBuffer) {
-	safeAPIcall(cudaFree(vBuffer->diagonal));
-	safeAPIcall(cudaFree(vBuffer->left0));
-	safeAPIcall(cudaFree(vBuffer->left1));
-	safeAPIcall(cudaFree(vBuffer->left2));
-	safeAPIcall(cudaFree(vBuffer->left3));
+	safeAPIcall(cudaFree(vBuffer->diagonal), __LINE__);
+	safeAPIcall(cudaFree(vBuffer->left0), __LINE__);
+	safeAPIcall(cudaFree(vBuffer->left1), __LINE__);
+	safeAPIcall(cudaFree(vBuffer->left2), __LINE__);
+	safeAPIcall(cudaFree(vBuffer->left3), __LINE__);
 }
 
 void initGlobalBuffer(GlobalBuffer *buffer, int secondLength, LaunchConfig config) {
@@ -173,7 +176,62 @@ void initGlobalBuffer(GlobalBuffer *buffer, int secondLength, LaunchConfig confi
 
 void freeGlobalBuffer(GlobalBuffer *buffer) {
 	freeVerticalBuffer(&buffer->vBuffer);
-    safeAPIcall(cudaFree(buffer->hBuffer.up));
+    safeAPIcall(cudaFree(buffer->hBuffer.up), __LINE__);
+}
+
+TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
+		int2 *vBusOut, int2 *specialRow) {
+	int gapOpen = -values.first;
+	int gapExtend = -values.extension;
+
+	int uEmpty = (!frontGap * -gapOpen) - row * gapExtend + gapOpen;
+	int dEmpty = (-gapOpen) - (rows - row - 2) * gapExtend;
+
+	int maxScr = INT_MIN;
+	int gap = 0; // boolean
+	int col = -1;
+
+	int uMaxScore = 0;
+	int dMaxScore = 0;
+
+	int up, down;
+	for(up = -1, down = cols - 1; up < cols; ++up, --down) {
+
+		int uScore = up == -1 ? uEmpty : specialRow[up].x;
+		int uAffine = up == -1 ? uEmpty : specialRow[up].y;
+
+		int dScore = down == -1 ? dEmpty : vBusOut[down].x;
+		int dAffine = down == -1 ? dEmpty : vBusOut[down].y;
+
+		int scr = uScore + dScore;
+		int aff = uAffine + dAffine + gapOpen - gapExtend;
+
+		int isScrAff = (uScore == uAffine) && (dScore == dAffine);
+
+		if (scr > maxScr || (scr == maxScr && !isScrAff)) {
+			maxScr = scr;
+			gap = 0;
+			col = up;
+			uMaxScore = uScore;
+			dMaxScore = dScore;
+		}
+
+		if (aff >= maxScr) {
+			maxScr = aff;
+			gap = 1;
+			col = up;
+			uMaxScore = uAffine;
+			dMaxScore = dAffine;
+		}
+	}
+
+	TracebackScore score;
+	score.gap = gap;
+	score.column = col;
+	score.row = row;
+	score.score = maxScr;
+
+	return score;
 }
 
 LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
@@ -245,13 +303,13 @@ CUDAcard findBestDevice() {
 
 	cudaDeviceProp bestDeviceProps;
 	
-	safeAPIcall(cudaGetDeviceCount(&numOfDevices));
+	safeAPIcall(cudaGetDeviceCount(&numOfDevices), __LINE__);
 	
 	int maxCores = -1;
 
 	for (int i = 0; i < numOfDevices; ++i) {
 		cudaDeviceProp currentDeviceProps;
-		safeAPIcall(cudaGetDeviceProperties(&currentDeviceProps, i));
+		safeAPIcall(cudaGetDeviceProperties(&currentDeviceProps, i), __LINE__);
 			
 		int deviceCores = _ConvertSMVer2Cores(currentDeviceProps.major,
 				currentDeviceProps.minor) * currentDeviceProps.multiProcessorCount;

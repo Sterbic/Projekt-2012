@@ -92,20 +92,20 @@ bool FASTAsequence::load() {
 	return true;
 }
 
-void FASTAsequence::createReverse() {
-	reverseSequence = (char *) malloc(length + 1);
+void FASTAsequence::createReverse(int maxIndex) {
+	reverseSequence = (char *) malloc(maxIndex + 2);
 	if(reverseSequence == NULL)
 		exitWithMsg("Allocation error for reverse sequence.", -1);
 
-	for(int i = 0; i < length; i++)
-		reverseSequence[i] = sequence[length - i - 1];
+	for(int i = 0; i <= maxIndex; i++)
+		reverseSequence[i] = sequence[maxIndex - i];
 
-	reverseSequence[length] = 0;
+	reverseSequence[maxIndex + 1] = 0;
 }
 
-char *FASTAsequence::getReversedSequence() {
+char *FASTAsequence::getReversedSequence(int maxIndex) {
 	if(reverseSequence == NULL) {
-		createReverse();
+		createReverse(maxIndex);
 	}
 
 	return reverseSequence;

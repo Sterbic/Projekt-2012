@@ -1,10 +1,3 @@
-/*
- * SWkernel.cuh
- *
- *  Created on: Dec 4, 2012
- *      Author: Luka
- */
-
 #ifndef SWKERNEL_CUH_
 #define SWKERNEL_CUH_
 
@@ -62,6 +55,10 @@ __device__ void printBuffers(HorizontalBuffer *h, VerticalBuffer *v, int2 *local
 	printf("\n\n");
 }
 
+__device__ void checkStartPoint(K *iBuffer, TracebackScore *last) {
+
+}
+
 __device__ void initK(K *k, int i, int j, HorizontalBuffer *hbuffer, VerticalBuffer *vbuffer) {
 	int index = (i / ALPHA) % (blockDim.x * gridDim.x);
 	k->diagonal = vbuffer->diagonal[index];
@@ -84,24 +81,58 @@ __device__ void initK(K *k, int i, int j, int2 * lHbuffer, VerticalBuffer *vbuff
 	k->up = lHbuffer[threadIdx.x];
 }
 
-__device__ void initReverseK(K *k, int i, int j, HorizontalBuffer *hbuffer, VerticalBuffer *vbuffer) {
+__device__ void initReverseK(K *k, int i, int j, HorizontalBuffer *hbuffer,
+		VerticalBuffer *vbuffer, scoring values, bool gap) {
 	int index = (i / ALPHA) % (blockDim.x * gridDim.x);
-	k->diagonal = vbuffer->diagonal[index];
-	k->left0 = vbuffer->left0[index];
-	k->left1 = vbuffer->left1[index];
-	k->left2 = vbuffer->left2[index];
-	k->left3 = vbuffer->left3[index]; // NW inicijalizacija
+
+	if(j == 0) {
+		k->diagonal = (i != 0) * (values.first + (i - 1) * values.extension + gap * values.first);
+
+		k->left0.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left1.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left2.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left3.x = (values.first + (i - 1) * values.extension + gap * values.first);
+
+		k->left0.y = k->left0.x;
+		k->left1.y = k->left1.x;
+		k->left2.y = k->left2.x;
+		k->left3.y = k->left3.x;
+	}
+	else {
+		k->diagonal = vbuffer->diagonal[index];
+		k->left0 = vbuffer->left0[index];
+		k->left1 = vbuffer->left1[index];
+		k->left2 = vbuffer->left2[index];
+		k->left3 = vbuffer->left3[index]; // NW inicijalizacija
+	}
 
 	k->up = hbuffer->up[j];
 }
 
-__device__ void initReverseK(K *k, int i, int j, int2 * lHbuffer, VerticalBuffer *vbuffer) {
+__device__ void initReverseK(K *k, int i, int j, int2 * lHbuffer,
+		VerticalBuffer *vbuffer, scoring values, bool gap) {
 	int index = (i / ALPHA) % (blockDim.x * gridDim.x);
-	k->diagonal = vbuffer->diagonal[index];
-	k->left0 = vbuffer->left0[index];
-	k->left1 = vbuffer->left1[index];
-	k->left2 = vbuffer->left2[index];
-	k->left3 = vbuffer->left3[index];// NW inicijalizacija
+
+	if(j == 0) {
+		k->diagonal = (i != 0) * (values.first + (i - 1) * values.extension + gap * values.first);
+
+		k->left0.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left1.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left2.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left3.x = (values.first + (i - 1) * values.extension + gap * values.first);
+
+		k->left0.y = k->left0.x;
+		k->left1.y = k->left1.x;
+		k->left2.y = k->left2.x;
+		k->left3.y = k->left3.x;
+	}
+	else {
+		k->diagonal = vbuffer->diagonal[index];
+		k->left0 = vbuffer->left0[index];
+		k->left1 = vbuffer->left1[index];
+		k->left2 = vbuffer->left2[index];
+		k->left3 = vbuffer->left3[index]; // NW inicijalizacija
+	}
 
 	k->up = lHbuffer[threadIdx.x];
 }
