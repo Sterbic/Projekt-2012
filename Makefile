@@ -6,3 +6,6 @@ HEADERS := $(wildcard $(SRC_DIR)/*.h $(SRC_DIR)/*.cuh)
 
 SWalign: $(HEADERS) $(SRC)
 	nvcc -o $@ $(SRC) $(FLAGS)
+
+Debug: $(HEADERS) $(SRC)
+	nvcc -o SWalign $(SRC) $(FLAGS) -g

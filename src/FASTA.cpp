@@ -11,17 +11,20 @@
 
 #include "Defines.h"
 #include "FASTA.h"
+#include "SWutils.h"
 
 FASTAsequence::FASTAsequence(char *fileName) {
 	this->fileName = fileName;
 	length = 0;
 	sequence = NULL;
 	sequenceName = NULL;
+	reverseSequence = NULL;
 }
 
 FASTAsequence::~FASTAsequence() {
 	if(sequenceName != NULL) free(sequenceName);
 	if(sequence != NULL) free(sequence);
+	if(reverseSequence != NULL) free(sequence);
 }
 
 char *FASTAsequence::getSequenceName() {
@@ -87,6 +90,25 @@ bool FASTAsequence::load() {
 	sequence = seq;
 
 	return true;
+}
+
+void FASTAsequence::createReverse() {
+	reverseSequence = (char *) malloc(length + 1);
+	if(reverseSequence == NULL)
+		exitWithMsg("Allocation error for reverse sequence.", -1);
+
+	for(int i = 0; i < length; i++)
+		reverseSequence[i] = sequence[length - i - 1];
+
+	reverseSequence[length] = 0;
+}
+
+char *FASTAsequence::getReversedSequence() {
+	if(reverseSequence == NULL) {
+		createReverse();
+	}
+
+	return reverseSequence;
 }
 
 bool FASTAsequence::doPadding(int padTo, char withSymb) {
