@@ -257,8 +257,6 @@ int main(int argc, char *argv[]) {
 			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut + paddedChunkWidth - chunkSize,
 					chunkSize, cudaMemcpyDeviceToHost), __LINE__);
 
-
-
 			TracebackScore tracebackScore = getTracebackScore(
 					values, gap, specialRowIndex, chunkSize, chunkSize, vBusOut, specialRow);
 
