@@ -5,9 +5,13 @@ SWalign is a CUDA parallelized sequence alignment software implementing Smith-Wa
 
 Authors:
 
+Marija Mikulic, marija.mikulic@fer.hr
+
 Luka Šterbić, luka.sterbic@fer.hr
 
-Marija Mikulic, marija.mikulic@fer.hr
+Contributors:
+
+Matija Korpar, matija.korpar@fer.hr
 
 
 Index:
