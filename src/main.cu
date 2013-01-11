@@ -144,6 +144,7 @@ int main(int argc, char *argv[]) {
 
     free(score);
 
+	//######################## traceback #################################
     HorizontalBuffer hBuffer;
     hBuffer.up = (int2 *) cudaGetSpaceAndSet(sizeof(int2) * rowBuilder.getRowHeight(), -max.score);
     VerticalBuffer vBuffer;
@@ -258,20 +259,24 @@ int main(int argc, char *argv[]) {
 					chunkSize, cudaMemcpyDeviceToHost), __LINE__);
 
 			TracebackScore tracebackScore = getTracebackScore(
-					values, gap, specialRowIndex, chunkSize, chunkSize, vBusOut, specialRow);
+					values, gap, specialRowIndex, chunkSize, chunkSize, vBusOut, specialRow);//specialRow?
 
-			maxTrace.score -= tracebackScore.score;
-			maxTrace.column -= tracebackScore.column;
-			maxTrace.row -= tracebackScore.row;
-			maxTrace.gap = tracebackScore.gap;
-			gap = tracebackScore.gap;
+			if(/*naden crosspoint*/) {
+				maxTrace.score -= tracebackScore.score;
+				maxTrace.column -= tracebackScore.column;
+				maxTrace.row -= tracebackScore.row;
+				maxTrace.gap = tracebackScore.gap;
+				gap = tracebackScore.gap;
 
-			printf("Crosspoint [%d, %d] = %d", maxTrace.row, maxTrace.column, maxTrace.score);
-			crosspoints.push_back(maxTrace);
+				printf("Crosspoint [%d, %d] = %d", maxTrace.row, maxTrace.column, maxTrace.score);
+				crosspoints.push_back(maxTrace);
 
-			specialRowIndex -= rowBuilder.getRowHeight();
-			widthOffset += chunkSize;
-			heigthOffset += getVertical;
+				specialRowIndex -= rowBuilder.getRowHeight();
+				widthOffset += chunkSize;
+				heigthOffset += getVertical;
+				
+				break;
+			}
 		}
     }
 

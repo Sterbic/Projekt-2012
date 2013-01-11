@@ -184,44 +184,44 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 	int gapOpen = -values.first;
 	int gapExtend = -values.extension;
 
-	int uEmpty = (!frontGap * -gapOpen) - row * gapExtend + gapOpen;
-	int dEmpty = (-gapOpen) - (rows - row - 2) * gapExtend;
+	int rEmpty = (!frontGap * -gapOpen) - row * gapExtend + gapOpen;
+	int bEmpty = (-gapOpen) - (rows - row - 2) * gapExtend;
 
 	int maxScr = INT_MIN;
 	int gap = 0; // boolean
 	int col = -1;
 
-	int uMaxScore = 0;
-	int dMaxScore = 0;
+	int rMaxScore = 0;
+	int bMaxScore = 0;
 
-	int up, down;
-	for(up = -1, down = cols - 1; up < cols; ++up, --down) {
+	int sRowIdx, vBusIdx;
+	for(sRowIdx = -1, vBusIdx = cols - 1; sRowIdx < cols; ++sRowIdx, --vBusIdx) {
 
-		int uScore = up == -1 ? uEmpty : specialRow[up].x;
-		int uAffine = up == -1 ? uEmpty : specialRow[up].y;
+		int rScore = sRowIdx == -1 ? rEmpty : specialRow[sRowIdx].x;
+		int rAffine = sRowIdx == -1 ? rEmpty : specialRow[sRowIdx].y;
 
-		int dScore = down == -1 ? dEmpty : vBusOut[down].x;
-		int dAffine = down == -1 ? dEmpty : vBusOut[down].y;
+		int bScore = vBusIdx == -1 ? bEmpty : vBusOut[vBusIdx].x;
+		int bAffine = vBusIdx == -1 ? bEmpty : vBusOut[vBusIdx].y;
 
-		int scr = uScore + dScore;
-		int aff = uAffine + dAffine + gapOpen - gapExtend;
+		int scr = rScore + bScore;
+		int aff = rAffine + bAffine + gapOpen - gapExtend;
 
-		int isScrAff = (uScore == uAffine) && (dScore == dAffine);
+		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
 		if (scr > maxScr || (scr == maxScr && !isScrAff)) {
 			maxScr = scr;
 			gap = 0;
-			col = up;
-			uMaxScore = uScore;
-			dMaxScore = dScore;
+			col = sRowIdx;
+			rMaxScore = rScore;
+			bMaxScore = bScore;
 		}
 
 		if (aff >= maxScr) {
 			maxScr = aff;
 			gap = 1;
-			col = up;
-			uMaxScore = uAffine;
-			dMaxScore = dAffine;
+			col = sRowIdx;
+			rMaxScore = rAffine;
+			bMaxScore = bAffine;
 		}
 	}
 

@@ -13,7 +13,7 @@ RowBuilder::RowBuilder(int firstLen, int secondLen, LaunchConfig *config) {
 	this->secondLen = secondLen;
 	this->config = config;
 
-	this->dumpRows = ALPHA * config->threads;
+	this->rowHeight = ALPHA * config->threads;
 
 	hb = (int2 *) malloc(secondLen * sizeof(int2));
 	if(hb == NULL)
@@ -35,7 +35,7 @@ void RowBuilder::dumpShort(int2 *devHBuffer, int dk) {
 	int count = 1;
 
 	for (int counter = dk; counter >= 0; --counter) {
-		if(row % dumpRows == 0 && row >= 0 && row < firstLen) {
+		if(row % rowHeight == 0 && row >= 0 && row < firstLen) {
 			memset(fileName, 0, 50);
 			sprintf(fileName, "temp/row_%d", row);
 			FILE *f = fopen(fileName, "ab");
@@ -74,7 +74,7 @@ void RowBuilder::dumpLong(int2 *devHBuffer, int dk) {
 	int offset = 1;
 	for (int counter = dk; counter >= 0; --counter) {
 
-		if(row % dumpRows == 0 && row >= 0 && row < firstLen) {
+		if(row % rowHeight == 0 && row >= 0 && row < firstLen) {
 			memset(fileName, 0, 50);
 			sprintf(fileName, "temp/row_%d", row);
 			FILE *f = fopen(fileName, "ab");
@@ -103,5 +103,5 @@ void RowBuilder::dumpLong(int2 *devHBuffer, int dk) {
 }
 
 int RowBuilder::getRowHeight(void) {
-	return dumpRows;
+	return rowHeight;
 }
