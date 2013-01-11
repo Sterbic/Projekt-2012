@@ -5,14 +5,14 @@
  *      Author: Luka
  */
 
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
+#include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
-#include <limits.h>
-#include <cuda.h>
-#include <driver_types.h>
-#include <cuda_runtime_api.h>
 
 #include "Defines.h"
 #include "SWutils.h"

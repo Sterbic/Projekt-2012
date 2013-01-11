@@ -1,12 +1,12 @@
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
 #include <cuda_runtime_api.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <vector_types.h>
 
-#include "Defines.h"
 #include "Builders.h"
+#include "Defines.h"
 
 RowBuilder::RowBuilder(int firstLen, int secondLen, LaunchConfig *config) {
 	this->firstLen = firstLen;

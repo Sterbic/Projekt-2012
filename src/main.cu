@@ -1,16 +1,16 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
-#include <cuda.h>
 #include <algorithm>
+#include <cuda.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <vector>
 
+#include "Builders.h"
 #include "Defines.h"
 #include "FASTA.h"
-#include "SWutils.h"
-#include "Builders.h"
 #include "FindAlignment.cuh"
+#include "SWutils.h"
 #include "Traceback.cuh"
 
 int main(int argc, char *argv[]) {
@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
 
     scoring values = initScoringValues(argv[3], argv[4], argv[5], argv[6]);
 
+	//###################### finding alignment ##############################
     printf("> Starting alignment process... ");
 
     alignmentScore *score;
@@ -255,11 +256,16 @@ int main(int argc, char *argv[]) {
 							);
 			}
 
-			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut + paddedChunkWidth - chunkSize,
-					chunkSize, cudaMemcpyDeviceToHost), __LINE__);
+			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut + paddedChunkWidth - getNum, // po meni, tu je getNum, a ne chunkSize
+					getNum, cudaMemcpyDeviceToHost), __LINE__);
 
+			/*
+			TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
+			int2 *vBusOut, int2 *specialRow)
+			*/
+			
 			TracebackScore tracebackScore = getTracebackScore(
-					values, gap, specialRowIndex, chunkSize, chunkSize, vBusOut, 
+					values, gap, specialRowIndex, chunkSize, getNum, vBusOut, 
 					specialRow + maxTrace.column - widthOffset - getNum - 1); //nisam sigurna je li chunkSize ili getNum
 
 			if(/*naden crosspoint*/) {
