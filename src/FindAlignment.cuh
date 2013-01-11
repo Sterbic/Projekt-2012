@@ -40,7 +40,7 @@ __global__ void shortPhase(
 	int3 localMax;
 	localMax.x = 0;
 
-	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
+	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; ++innerDiagonal) {
 
 		__syncthreads();
 
@@ -113,7 +113,7 @@ __global__ void shortPhase(
 			}
 		}
 
-		j++;
+		++j;
 
 		__syncthreads();
 
@@ -177,7 +177,7 @@ __global__ void longPhase(
 	int3 localMax;
 	localMax.x = 0;
 
-	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
+	for(int innerDiagonal = blockDim.x; innerDiagonal < C; ++innerDiagonal) {
 
 		__syncthreads();
 
@@ -250,7 +250,7 @@ __global__ void longPhase(
 			}
 		}
 
-		j++;
+		++j;
 
 		__syncthreads();
 

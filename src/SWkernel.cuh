@@ -37,12 +37,12 @@ __device__ void printK(K *k) {
 
 __device__ void printBuffers(HorizontalBuffer *h, VerticalBuffer *v, int2 *localh, int hlen) {
 	printf("Horizontal: { ");
-	for(int i = 0; i < hlen; i++)
+	for(int i = 0; i < hlen; ++i)
 		printf("[%d, %d] ", h->up[i].x, h->up[i].y);
 	printf("}\n\n");
 
 	printf("Local h: { ");
-		for(int i = 0; i < blockDim.x; i++)
+		for(int i = 0; i < blockDim.x; ++i)
 			printf("[%d, %d] ", localh[i].x, localh[i].y);
 	printf("}\n\n");
 

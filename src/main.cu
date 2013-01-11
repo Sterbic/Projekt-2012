@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     cudaTimer kernelTimer;
     kernelTimer.start();
 
-    for(int dk = 0; dk < D + config.blocks; dk++) {
+    for(int dk = 0; dk < D + config.blocks; ++dk) {
     	shortPhase<<<config.blocks, config.threads, config.sharedMemSize>>>(
     			dk,
     			buffer.hBuffer,
@@ -217,9 +217,9 @@ int main(int argc, char *argv[]) {
 			safeAPIcall(cudaMemcpy(devColumn + i, pad, min(paddedChunkHeight - i, 240), cudaMemcpyHostToDevice), __LINE__);
 		}
 
-		while(widthOffset < max.column) {
+		while(widthOffset < maxTrace.column) { // tu je prije pisalo max.column
 
-			int getNum = min(chunkSize, max.column - widthOffset);
+			int getNum = min(chunkSize, maxTrace.column - widthOffset); //tu je prije pisalo max.column
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
 					getNum, cudaMemcpyHostToDevice), __LINE__);
 
@@ -227,7 +227,7 @@ int main(int argc, char *argv[]) {
 				safeAPIcall(cudaMemcpy(devRow + i, pad,
 						min(paddedChunkWidth - i, 240), cudaMemcpyHostToDevice), __LINE__);
 
-			for(int dk = 0; dk < D + traceback.blocks; dk++) {
+			for(int dk = 0; dk < D + traceback.blocks; ++dk) {
 				tracebackShort<<<traceback.blocks, traceback.threads, traceback.sharedMemSize>>>(
 							dk,
 							hBuffer,
@@ -259,7 +259,8 @@ int main(int argc, char *argv[]) {
 					chunkSize, cudaMemcpyDeviceToHost), __LINE__);
 
 			TracebackScore tracebackScore = getTracebackScore(
-					values, gap, specialRowIndex, chunkSize, chunkSize, vBusOut, specialRow);//specialRow?
+					values, gap, specialRowIndex, chunkSize, chunkSize, vBusOut, 
+					specialRow + maxTrace.column - widthOffset - getNum - 1); //nisam sigurna je li chunkSize ili getNum
 
 			if(/*naden crosspoint*/) {
 				maxTrace.score -= tracebackScore.score;
@@ -272,11 +273,14 @@ int main(int argc, char *argv[]) {
 				crosspoints.push_back(maxTrace);
 
 				specialRowIndex -= rowBuilder.getRowHeight();
-				widthOffset += chunkSize;
+				widthOffset = 0; // ako smo nasli crosspoint
 				heigthOffset += getVertical;
 				
 				break;
 			}
+			else 
+				widthOffset += getNum; 
+				// ako nismo nasli crosspoint, pomicemo se u stranu za onoliko koliko smo elemenata obradili
 		}
     }
 

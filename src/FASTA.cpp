@@ -58,7 +58,7 @@ bool FASTAsequence::load() {
 	sequenceName = (char *)malloc(size);
 	memset(sequenceName, 0, size);
 	if(sequenceName == NULL) return false;
-	for(int i = 0; i < size - 1; i++) {
+	for(int i = 0; i < size - 1; ++i) {
 		sequenceName[i] = c[i + 1];
 	}
 
@@ -97,7 +97,7 @@ void FASTAsequence::createReverse(int maxIndex) {
 	if(reverseSequence == NULL)
 		exitWithMsg("Allocation error for reverse sequence.", -1);
 
-	for(int i = 0; i <= maxIndex; i++)
+	for(int i = 0; i <= maxIndex; ++i)
 		reverseSequence[i] = sequence[maxIndex - i];
 
 	reverseSequence[maxIndex + 1] = 0;
@@ -122,7 +122,7 @@ bool FASTAsequence::doPadding(int padTo, char withSymb) {
 	if(sequence == NULL)
 		return false;
 
-	for(int i = 0; i < padding; i++) {
+	for(int i = 0; i < padding; ++i) {
 		sequence[length + i] = withSymb;
 	}
 	sequence[length + padding] = '\0';

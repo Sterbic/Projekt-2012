@@ -37,7 +37,7 @@ __global__ void tracebackShort(
 	if(i >= 0 && i < firstLength)
 		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
 
-	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
+	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; ++innerDiagonal) {
 
 		__syncthreads();
 
@@ -95,7 +95,7 @@ __global__ void tracebackShort(
 			}
 		}
 
-		j++;
+		++j;
 
 		__syncthreads();
 
@@ -152,7 +152,7 @@ __global__ void tracebackLong(
 	if(i >= 0 && i < firstLength)
 		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
 
-	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
+	for(int innerDiagonal = blockDim.x; innerDiagonal < C; ++innerDiagonal) {
 
 		__syncthreads();
 
@@ -209,7 +209,7 @@ __global__ void tracebackLong(
 			}
 		}
 
-		j++;
+		++j;
 
 		__syncthreads();
 
@@ -267,7 +267,7 @@ __global__ void tracebackLastShort(
 	if(i >= 0 && i < firstLength)
 		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
 
-	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; innerDiagonal++) {
+	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; ++innerDiagonal) {
 
 		__syncthreads();
 
@@ -319,7 +319,7 @@ __global__ void tracebackLastShort(
 			}
 		}
 
-		j++;
+		++j;
 
 		__syncthreads();
 
@@ -374,7 +374,7 @@ __global__ void tracebackLastLong(
 	if(i >= 0 && i < firstLength)
 		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
 
-	for(int innerDiagonal = blockDim.x; innerDiagonal < C; innerDiagonal++) {
+	for(int innerDiagonal = blockDim.x; innerDiagonal < C; ++innerDiagonal) {
 
 		__syncthreads();
 
@@ -425,7 +425,7 @@ __global__ void tracebackLastLong(
 			}
 		}
 
-		j++;
+		++j;
 
 		__syncthreads();
 
