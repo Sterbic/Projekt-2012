@@ -180,15 +180,15 @@ void freeGlobalBuffer(GlobalBuffer *buffer) {
 }
 
 TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
-		int2 *vBusOut, int2 *specialRow) {
+		int2 *vBusOut, int2 *specialRow, int targetScore) {//dodamo target score kao argument, i kad njega nademo, to je crosspoint
+														   //cini mi se da bi tako trebalo biti
 	int gapOpen = -values.first;
 	int gapExtend = -values.extension;
 
 	int rEmpty = (!frontGap * -gapOpen) - row * gapExtend + gapOpen;
 	int bEmpty = (-gapOpen) - (rows - row - 2) * gapExtend;
 
-	int maxScr = INT_MIN;
-	int gap = 0; // boolean
+	TracebackScore score;
 	int col = -1;
 
 	int rMaxScore = 0;
@@ -208,29 +208,27 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
-		if (scr > maxScr || (scr == maxScr && !isScrAff)) {
-			maxScr = scr;
-			gap = 0;
-			col = sRowIdx;
-			rMaxScore = rScore;
-			bMaxScore = bScore;
+		if (scr == targetScore || (scr == maxScr && !isScrAff)) {
+			score.gap = 0;
+			score.column = col;
+			score.row = row;
+			score.score = scr;
+			
+			return score;
 		}
 
-		if (aff >= maxScr) {
-			maxScr = aff;
-			gap = 1;
-			col = sRowIdx;
-			rMaxScore = rAffine;
-			bMaxScore = bAffine;
+		if (aff == targetScore) {
+			score.gap = 1;
+			score.column = col;
+			score.row = row;
+			score.score = scr;
+			
+			return score;
 		}
 	}
-
-	TracebackScore score;
-	score.gap = gap;
-	score.column = col;
-	score.row = row;
-	score.score = maxScr;
-
+	
+	score.column = score.row = -1;
+	
 	return score;
 }
 

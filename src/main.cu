@@ -266,9 +266,9 @@ int main(int argc, char *argv[]) {
 			
 			TracebackScore tracebackScore = getTracebackScore(
 					values, gap, specialRowIndex, chunkSize, getNum, vBusOut, 
-					specialRow + maxTrace.column - widthOffset - getNum - 1); //nisam sigurna je li chunkSize ili getNum
+					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace); //nisam sigurna je li chunkSize ili getNum
 
-			if(/*naden crosspoint*/) {
+			if(tracebackScore.col != -1) {
 				maxTrace.score -= tracebackScore.score;
 				maxTrace.column -= tracebackScore.column;
 				maxTrace.row -= tracebackScore.row;
