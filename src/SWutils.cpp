@@ -208,7 +208,7 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
-		if (scr == targetScore || (scr == maxScr && !isScrAff)) {
+		if (scr == targetScore && !isScrAff)) {
 			score.gap = 0;
 			score.column = col;
 			score.row = row;
