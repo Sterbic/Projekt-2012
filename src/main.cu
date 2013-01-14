@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
     D = traceback.blocks + ceil(((double) std::max(paddedChunkHeight, paddedChunkWidth))
     			/ (ALPHA * traceback.threads)) - 1;
 
-    while(maxTrace.score >= rowBuilder.getRowHeight() * values.match) {
+    while(maxTrace.score > rowBuilder.getRowHeight() * values.match) {
 
 		memset(fileName, 0, 50);
 		sprintf(fileName, "temp/row_%d", specialRowIndex);
@@ -266,11 +266,11 @@ int main(int argc, char *argv[]) {
 			
 			TracebackScore tracebackScore = getTracebackScore(
 					values, gap, specialRowIndex, chunkSize, getNum, vBusOut, 
-					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace); //nisam sigurna je li chunkSize ili getNum
+					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace.score); //nisam sigurna je li chunkSize ili getNum
 
-			if(tracebackScore.col != -1) {
-				maxTrace.score -= tracebackScore.score;
-				maxTrace.column -= tracebackScore.column;
+			if(tracebackScore.column != -1) {
+				maxTrace.score = tracebackScore.score;
+				maxTrace.column = maxTrace.column - widthOffset - getNum + tracebackScore.column;
 				maxTrace.row -= tracebackScore.row;
 				maxTrace.gap = tracebackScore.gap;
 				gap = tracebackScore.gap;

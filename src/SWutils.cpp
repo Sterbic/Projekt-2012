@@ -1,10 +1,3 @@
-/*
- * SWutils.cpp
- *
- *  Created on: Dec 1, 2012
- *      Author: Luka
- */
-
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <driver_types.h>
@@ -208,11 +201,11 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
-		if (scr == targetScore && !isScrAff)) {
+		if (scr == targetScore && !isScrAff) {
 			score.gap = 0;
 			score.column = col;
 			score.row = row;
-			score.score = scr;
+			score.score = rScore;
 			
 			return score;
 		}
@@ -221,7 +214,7 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 			score.gap = 1;
 			score.column = col;
 			score.row = row;
-			score.score = scr;
+			score.score = rAffine;
 			
 			return score;
 		}

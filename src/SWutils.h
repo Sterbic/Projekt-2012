@@ -1,10 +1,3 @@
-/*
- * SWutils.h
- *
- *  Created on: Dec 1, 2012
- *      Author: Luka
- */
-
 #ifndef SWUTILS_H_
 #define SWUTILS_H_
 
