@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
     initVerticalBuffer(&vBuffer, config);
 
     int widthOffset = 0;
-    int heigthOffset = 0;
+    int heightOffset = 0;
     int specialRowIndex = (max.row / rowBuilder.getRowHeight()) * rowBuilder.getRowHeight();
     int chunkSize = rowBuilder.getRowHeight();
     char fileName[50];
@@ -196,6 +196,7 @@ int main(int argc, char *argv[]) {
     D = traceback.blocks + ceil(((double) std::max(paddedChunkHeight, paddedChunkWidth))
     			/ (ALPHA * traceback.threads)) - 1;
 
+	int readOffset = 0;
     while(maxTrace.score > rowBuilder.getRowHeight() * values.match) {
 
 		memset(fileName, 0, 50);
@@ -209,7 +210,7 @@ int main(int argc, char *argv[]) {
 		fclose(f);
 
 		int getVertical = min(chunkSize, maxTrace.row - specialRowIndex);
-		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heigthOffset,
+		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 				getVertical, cudaMemcpyHostToDevice), __LINE__);
 
 		printf("Padded H = %d\n", paddedChunkHeight);
@@ -221,7 +222,7 @@ int main(int argc, char *argv[]) {
 		while(widthOffset < maxTrace.column) { // tu je prije pisalo max.column
 
 			int getNum = min(chunkSize, maxTrace.column - widthOffset); //tu je prije pisalo max.column
-			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
+			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset + readOffset,
 					getNum, cudaMemcpyHostToDevice), __LINE__);
 
 			for(int i = getNum; i < paddedChunkWidth - getNum; i += 240)
@@ -266,21 +267,22 @@ int main(int argc, char *argv[]) {
 			
 			TracebackScore tracebackScore = getTracebackScore(
 					values, gap, specialRowIndex, chunkSize, getNum, vBusOut, 
-					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace.score); //nisam sigurna je li chunkSize ili getNum
+					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace.score, maxTrace.column - widthOffset); //nisam sigurna je li chunkSize ili getNum
 
 			if(tracebackScore.column != -1) {
 				maxTrace.score = tracebackScore.score;
-				maxTrace.column = maxTrace.column - widthOffset - getNum + tracebackScore.column;
-				maxTrace.row -= tracebackScore.row;
+				maxTrace.column = tracebackScore.column;
+				maxTrace.row = tracebackScore.row;
 				maxTrace.gap = tracebackScore.gap;
 				gap = tracebackScore.gap;
 
 				printf("Crosspoint [%d, %d] = %d", maxTrace.row, maxTrace.column, maxTrace.score);
 				crosspoints.push_back(maxTrace);
 
+				readOffset += widthOffset;
 				specialRowIndex -= rowBuilder.getRowHeight();
 				widthOffset = 0; // ako smo nasli crosspoint
-				heigthOffset += getVertical;
+				heightOffset += getVertical;
 				
 				break;
 			}
@@ -291,7 +293,7 @@ int main(int argc, char *argv[]) {
     }
 
     if(maxTrace.score != 0) {
-    	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heigthOffset,
+    	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
     			chunkSize, cudaMemcpyHostToDevice), __LINE__);
 
     	for(int i = chunkSize; i < paddedChunkHeight - chunkSize; i += 240)

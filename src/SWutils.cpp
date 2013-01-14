@@ -173,8 +173,8 @@ void freeGlobalBuffer(GlobalBuffer *buffer) {
 }
 
 TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
-		int2 *vBusOut, int2 *specialRow, int targetScore) {//dodamo target score kao argument, i kad njega nademo, to je crosspoint
-														   //cini mi se da bi tako trebalo biti
+		int2 *vBusOut, int2 *specialRow, int targetScore, int absColIdx) {
+										//dodamo target score kao argument, i kad njega nademo, to je crosspoint
 	int gapOpen = -values.first;
 	int gapExtend = -values.extension;
 
@@ -182,7 +182,6 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 	int bEmpty = (-gapOpen) - (rows - row - 2) * gapExtend;
 
 	TracebackScore score;
-	int col = -1;
 
 	int rMaxScore = 0;
 	int bMaxScore = 0;
@@ -203,7 +202,7 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		if (scr == targetScore && !isScrAff) {
 			score.gap = 0;
-			score.column = col;
+			score.column = absColIdx - getNum + sRowIdx;
 			score.row = row;
 			score.score = rScore;
 			
@@ -212,7 +211,7 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		if (aff == targetScore) {
 			score.gap = 1;
-			score.column = col;
+			score.column = absColIdx - getNum + sRowIdx;
 			score.row = row;
 			score.score = rAffine;
 			

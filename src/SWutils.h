@@ -108,7 +108,7 @@ void initVerticalBuffer(VerticalBuffer *vBuffer, LaunchConfig config);
 void freeVerticalBuffer(VerticalBuffer *vBuffer);
 
 TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
-		int2 *vBusOut, int2 *specialRow, int targetScore);
+		int2 *vBusOut, int2 *specialRow, int targetScore, int absColIdx);
 
 alignmentScore getMaxScore(alignmentScore *score, int n);
 
