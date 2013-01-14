@@ -3,6 +3,7 @@
 
 #include <driver_types.h>
 
+#include "Defines.h"
 #include "FASTA.h"
 
 typedef struct {

@@ -7,7 +7,7 @@ class RowBuilder {
 private:
 	int firstLen;
 	int secondLen;
-	int dumpRows;
+	int rowHeight;
 	LaunchConfig *config;
 	int2 *hb;
 
