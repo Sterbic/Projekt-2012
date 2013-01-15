@@ -189,6 +189,7 @@ int main(int argc, char *argv[]) {
 
     crosspoints.push_back(maxTrace);
 
+    printf("\nSR size = %d\n", query.getSecond()->getPaddedLength() * sizeof(int2));
 	int2 *specialRow = (int2 *) malloc(query.getSecond()->getPaddedLength() * sizeof(int2));
 	if(specialRow == NULL)
 		exitWithMsg("Error allocating special row.", -1);
@@ -201,7 +202,7 @@ int main(int argc, char *argv[]) {
 
 		memset(fileName, 0, 50);
 		sprintf(fileName, "temp/row_%d", specialRowIndex);
-		printf("%s %d\n", fileName, rowBuilder.getRowHeight());
+		printf("%s\n", fileName);
 		FILE *f = fopen(fileName, "rb");
 		if(f == NULL)
 			exitWithMsg("Error opening special row file.", -1);
@@ -213,21 +214,25 @@ int main(int argc, char *argv[]) {
 		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 				getVertical, cudaMemcpyHostToDevice), __LINE__);
 
-		printf("Padded H = %d\n", paddedChunkHeight);
+		printf("Padded H = %d, Padded W = %d\n", paddedChunkHeight, paddedChunkWidth);
 		for(int i = getVertical; i < paddedChunkHeight - getVertical; i += 240) {
 			printf("i = %d ", i);
 			safeAPIcall(cudaMemcpy(devColumn + i, pad, min(paddedChunkHeight - i, 240), cudaMemcpyHostToDevice), __LINE__);
 		}
+		printf("getVertical = %d\n", getVertical);
 
 		while(widthOffset < maxTrace.column) { // tu je prije pisalo max.column
 
 			int getNum = min(chunkSize, maxTrace.column - widthOffset); //tu je prije pisalo max.column
+			printf("getNum = %d\n", getNum);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset + readOffset,
 					getNum, cudaMemcpyHostToDevice), __LINE__);
 
-			for(int i = getNum; i < paddedChunkWidth - getNum; i += 240)
+			for(int i = getNum; i < paddedChunkWidth - getNum; i += 240) {
+				printf("i = %d ", i);
 				safeAPIcall(cudaMemcpy(devRow + i, pad,
 						min(paddedChunkWidth - i, 240), cudaMemcpyHostToDevice), __LINE__);
+			}
 
 			for(int dk = 0; dk < D + traceback.blocks; ++dk) {
 				tracebackShort<<<traceback.blocks, traceback.threads, traceback.sharedMemSize>>>(
@@ -269,6 +274,8 @@ int main(int argc, char *argv[]) {
 					values, gap, specialRowIndex, chunkSize, getNum, vBusOut, 
 					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace.score, maxTrace.column - widthOffset); //nisam sigurna je li chunkSize ili getNum
 
+			printf("\nTrace [%d, %d] = %d\n", tracebackScore.row, tracebackScore.column, tracebackScore.score);
+
 			if(tracebackScore.column != -1) {
 				maxTrace.score = tracebackScore.score;
 				maxTrace.column = tracebackScore.column;
@@ -290,6 +297,7 @@ int main(int argc, char *argv[]) {
 				widthOffset += getNum; 
 				// ako nismo nasli crosspoint, pomicemo se u stranu za onoliko koliko smo elemenata obradili
 		}
+		break;
     }
 
     if(maxTrace.score != 0) {
