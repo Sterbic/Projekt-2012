@@ -181,26 +181,21 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 	printf("target = %d, absColIdx = %d, row = %d, rows = %d, cols = %d\n",
 			targetScore, absColIdx, row, rows, cols);
 
-	int rEmpty = (!frontGap * -gapOpen) - row * gapExtend + gapOpen;
-	int bEmpty = (-gapOpen) - (rows - row - 2) * gapExtend;
-
 	TracebackScore score;
 
-	int rMaxScore = 0;
-	int bMaxScore = 0;
-
 	int sRowIdx, vBusIdx;
-	for(sRowIdx = -1, vBusIdx = cols - 1; sRowIdx < cols; ++sRowIdx, --vBusIdx) {
+	for(sRowIdx = 0, vBusIdx = cols - 1; sRowIdx < cols; ++sRowIdx, --vBusIdx) {
 
-		int rScore = sRowIdx == -1 ? rEmpty : specialRow[sRowIdx].x;
-		int rAffine = sRowIdx == -1 ? rEmpty : specialRow[sRowIdx].y;
+		int rScore =  specialRow[sRowIdx].x;
+		int rAffine =  specialRow[sRowIdx].y;
 
-		int bScore = vBusIdx == -1 ? bEmpty : vBusOut[vBusIdx].x;
-		int bAffine = vBusIdx == -1 ? bEmpty : vBusOut[vBusIdx].y;
+		int bScore = vBusOut[vBusIdx].x;
+		int bAffine = vBusOut[vBusIdx].y;
 
 		int scr = rScore + bScore;
 		int aff = rAffine + bAffine + gapOpen - gapExtend;
-		//printf("scr = %d, aff = %d\n", scr, aff);
+		printf("scr = %d, aff = %d\n", scr, aff);
+		printf("rScore = %d, bScore = %d, SRowIdx = %d\n\n", rScore, bScore, sRowIdx);
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 

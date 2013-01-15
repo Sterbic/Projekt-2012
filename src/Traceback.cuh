@@ -100,7 +100,12 @@ __global__ void tracebackShort(
 		__syncthreads();
 
 		if(j == secondLength) {
-			dumpToVBusOut(vBusOut, &iBuffer, i);
+			if(i >= 0 && i < firstLength) {
+				dumpToVBusOut(vBusOut, &iBuffer, i);
+			//	printf("ShortDumping: j = %d, i = %d, %d %d %d %d\n", j, i,
+			//			iBuffer.left0.x, iBuffer.left1.x, iBuffer.left2.x, iBuffer.left3.x);
+
+			}
 
 			j = 0;
 			i += gridDim.x * ALPHA * blockDim.x;
@@ -213,9 +218,6 @@ __global__ void tracebackLong(
 
 		__syncthreads();
 
-		if(j == secondLength)
-			dumpToVBusOut(vBusOut, &iBuffer, i);
-
 		int2 newUp;
 		if(threadIdx.x > 0)
 			newUp = iHbuffer[threadIdx.x];
@@ -226,6 +228,14 @@ __global__ void tracebackLong(
 	}
 
 	if (i >= 0 && i < firstLength) {
+
+		//printf("PreDumping: j = %d, i = %d, FL = %d, SL = %d\n", j, i, firstLength, secondLength);
+		if(j == secondLength) {
+			printf("LongDumping: j = %d, i = %d, %d %d %d %d\n", j, i,
+					iBuffer.left0.x, iBuffer.left1.x, iBuffer.left2.x, iBuffer.left3.x);
+			dumpToVBusOut(vBusOut, &iBuffer, i);
+		}
+
 		updateVerticalBuffer(&iBuffer, &vbuffer, i);
 		if(threadIdx.x < blockDim.x -1)
 			hbuffer.up[j - 1] = iHbuffer[threadIdx.x + 1];
