@@ -318,6 +318,7 @@ int main(int argc, char *argv[]) {
 		}
     }
 
+    printf("\nStarting last\n");
     if(maxTrace.score != 0) {
     	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
     			chunkSize * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
@@ -326,7 +327,7 @@ int main(int argc, char *argv[]) {
 			safeAPIcall(cudaMemcpy(devColumn + i, pad,
 					min(paddedChunkWidth - i, 240) * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
-    	while(widthOffset < max.column) {
+    	while(widthOffset < maxTrace.column) {
     		int getNum = min(chunkSize, max.column - widthOffset);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
 					getNum * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
