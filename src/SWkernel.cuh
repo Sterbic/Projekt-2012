@@ -55,8 +55,34 @@ __device__ void printBuffers(HorizontalBuffer *h, VerticalBuffer *v, int2 *local
 	printf("\n\n");
 }
 
-__device__ void checkStartPoint(K *iBuffer, TracebackScore *last) {
+__device__ void checkStartPoint(K *iBuffer, int row, int col, int targetScore, TracebackScore *last) {
+	if(iBuffer->curr0.x == targetScore) {
+		last[threadIdx.x + blockIdx.x * blockDim.x].score = 0;
+		last[threadIdx.x + blockIdx.x * blockDim.x].row = col;
+		last[threadIdx.x + blockIdx.x * blockDim.x].column = row;
+		return;
+	}
 
+	if(iBuffer->curr1.x == targetScore) {
+		last[threadIdx.x + blockIdx.x * blockDim.x].score = 0;
+		last[threadIdx.x + blockIdx.x * blockDim.x].row = col;
+		last[threadIdx.x + blockIdx.x * blockDim.x].column = row + 1;
+		return;
+	}
+
+	if(iBuffer->curr2.x == targetScore) {
+		last[threadIdx.x + blockIdx.x * blockDim.x].score = 0;
+		last[threadIdx.x + blockIdx.x * blockDim.x].row = col;
+		last[threadIdx.x + blockIdx.x * blockDim.x].column = row + 2;
+		return;
+	}
+
+	if(iBuffer->curr3.x == targetScore) {
+		last[threadIdx.x + blockIdx.x * blockDim.x].score = 0;
+		last[threadIdx.x + blockIdx.x * blockDim.x].row = col;
+		last[threadIdx.x + blockIdx.x * blockDim.x].column = row + 3;
+		return;
+	}
 }
 
 __device__ void initK(K *k, int i, int j, HorizontalBuffer *hbuffer, VerticalBuffer *vbuffer) {

@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
 
 		memset(fileName, 0, 50);
 		sprintf(fileName, "temp/row_%d", specialRowIndex);
-		printf("%s\n", fileName);
+		//printf("%s\n", fileName);
 		FILE *f = fopen(fileName, "rb");
 		if(f == NULL)
 			exitWithMsg("Error opening special row file.", -1);
@@ -215,28 +215,28 @@ int main(int argc, char *argv[]) {
 		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 				getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
-		printf("Padded H = %d, Padded W = %d\n", paddedChunkHeight, paddedChunkWidth);
+		//printf("Padded H = %d, Padded W = %d\n", paddedChunkHeight, paddedChunkWidth);
 		for(int i = getVertical; i < paddedChunkHeight - getVertical; i += 240) {
-			printf("i = %d ", i);
+			//printf("i = %d ", i);
 			safeAPIcall(cudaMemcpy(devColumn + i, pad, min(paddedChunkHeight - i, 240) * sizeof(char),
 					cudaMemcpyHostToDevice), __LINE__);
 		}
-		printf("getVertical = %d\n", getVertical);
+		//printf("getVertical = %d\n", getVertical);
 
 		while(widthOffset < maxTrace.column) {
 
 			int getNum = min(min(chunkSize, getVertical), maxTrace.column - widthOffset);
-			printf("getNum = %d\n", getNum);
+			//printf("getNum = %d\n", getNum);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset + readOffset,
 					getNum * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
 			for(int i = getNum; i < paddedChunkWidth - getNum; i += 240) {
-				printf("i = %d ", i);
+				//printf("i = %d ", i);
 				safeAPIcall(cudaMemcpy(devRow + i, pad,
 						min(paddedChunkWidth - i, 240) * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 			}
 
-			printf("iter = %d\n", D + traceback.blocks);
+			//printf("iter = %d\n", D + traceback.blocks);
 			for(int dk = 0; dk < D + traceback.blocks; ++dk) {
 				tracebackShort<<<traceback.blocks, traceback.threads, traceback.sharedMemSize>>>(
 							dk,
@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
 			TracebackScore tracebackScore = getTracebackScore(
 					values, gap, specialRowIndex - 1, chunkSize, getNum, vBusOut,
 					specialRow + maxTrace.column - widthOffset - getNum, maxTrace.score, maxTrace.column - widthOffset);
-			printf("\nTrace [%d, %d] = %d\n", tracebackScore.row, tracebackScore.column, tracebackScore.score);
+			//printf("\nTrace [%d, %d] = %d\n", tracebackScore.row, tracebackScore.column, tracebackScore.score);
 
 			if(tracebackScore.column != -1) {
 				maxTrace.score = tracebackScore.score;
@@ -309,6 +309,9 @@ int main(int argc, char *argv[]) {
 				widthOffset = 0; // ako smo nasli crosspoint
 				heightOffset += getVertical;
 				
+				safeAPIcall(cudaMemset(hBuffer.up, -maxTrace.score, sizeof(int2) *
+						rowBuilder.getRowHeight()), __LINE__);
+
 				break;
 			}
 			else {
@@ -318,15 +321,27 @@ int main(int argc, char *argv[]) {
 		}
     }
 
-    printf("\nStarting last\n");
-    if(maxTrace.score != 0) {
-    	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
-    			chunkSize * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
+    printf("\nStarting last with target score %d\n", maxTrace.score);
 
-    	for(int i = chunkSize; i < paddedChunkHeight - chunkSize; i += 240)
-			safeAPIcall(cudaMemcpy(devColumn + i, pad,
+    char padLastRows[240];
+    memset(padLastRows, STAGE_2_PADDING_LAST_ROWS, 240);
+
+    int lastSize = traceback.blocks * traceback.threads * sizeof(TracebackScore);
+    TracebackScore *last = (TracebackScore *) malloc(lastSize);
+    if(last == NULL)
+    	exitWithMsg("Allocation error for traceback last", -1);
+    TracebackScore *devLast = (TracebackScore *) cudaGetSpaceAndSet(lastSize, -1);
+
+    if(maxTrace.score != 0) {
+    	int getVertical = min(chunkSize, maxTrace.row + 1);
+    	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
+    			getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
+
+    	for(int i = getVertical; i < paddedChunkHeight - getVertical; i += 240)
+			safeAPIcall(cudaMemcpy(devColumn + i, padLastRows,
 					min(paddedChunkWidth - i, 240) * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
+    	bool found = false;
     	while(widthOffset < maxTrace.column) {
     		int getNum = min(chunkSize, max.column - widthOffset);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
@@ -335,14 +350,6 @@ int main(int argc, char *argv[]) {
 			for(int i = getNum; i < paddedChunkWidth - getNum; i += 240)
 				safeAPIcall(cudaMemcpy(devRow + i, pad,
 						min(paddedChunkWidth - i, 240) * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
-
-			TracebackScore last;
-			last.score = maxTrace.score;
-			last.column = -10;
-			last.row = -10;
-			last.gap = false;
-
-			TracebackScore *devLast = (TracebackScore *) cudaGetDeviceCopy(&last, sizeof(TracebackScore));
 
 			for(int dk = 0; dk < D + traceback.blocks; dk++) {
 				tracebackLastShort<<<traceback.blocks, traceback.threads, traceback.sharedMemSize>>>(
@@ -355,11 +362,29 @@ int main(int argc, char *argv[]) {
 							paddedChunkHeight,
 							values,
 							gap,
-							devLast
+							devLast,
+							maxTrace.score
 							);
 
-				safeAPIcall(cudaMemcpy(&last, devLast, sizeof(TracebackScore), cudaMemcpyDeviceToHost), __LINE__);
-				if(last.row != -10) break;
+				safeAPIcall(cudaMemcpy(last, devLast, lastSize, cudaMemcpyDeviceToHost), __LINE__);
+				for(int i = 0; i < traceback.blocks * traceback.threads; i++) {
+					if(last[i].score != -1) {
+						TracebackScore lastScore;
+						lastScore.score = last[i].score;
+						lastScore.row = maxTrace.row - last[i].row;
+						lastScore.column = maxTrace.column - last[i].column - widthOffset;
+						lastScore.gap = false;
+
+						printf("last[i].row = %d, maxTrace.row = %d\n", last[i].row, maxTrace.row);
+						printf("Found last in short: [%d, %d] = %d\n", lastScore.row,
+								lastScore.column, lastScore.score);
+						crosspoints.push_back(lastScore);
+						found = true;
+						break;
+					}
+				}
+
+				if(found) break;
 
 				tracebackLastLong<<<traceback.blocks, traceback.threads, traceback.sharedMemSize>>>(
 							dk,
@@ -371,22 +396,43 @@ int main(int argc, char *argv[]) {
 							paddedChunkHeight,
 							values,
 							gap,
-							devLast
+							devLast,
+							maxTrace.score
 							);
 
-				safeAPIcall(cudaMemcpy(&last, devLast, sizeof(TracebackScore), cudaMemcpyDeviceToHost), __LINE__);
-				if(last.row != -10) break;
+				safeAPIcall(cudaMemcpy(last, devLast, lastSize, cudaMemcpyDeviceToHost), __LINE__);
+				for(int i = 0; i < traceback.blocks * traceback.threads; i++) {
+					if(last[i].score != -1) {
+						TracebackScore lastScore;
+						lastScore.score = last[i].score;
+						lastScore.row = maxTrace.row - last[i].row;
+						lastScore.column = maxTrace.column - last[i].column - widthOffset;
+						lastScore.gap = false;
+
+						printf("last[i].row = %d, maxTrace.row = %d\n", last[i].row, maxTrace.row);
+						printf("Found last in long: [%d, %d] = %d\n", lastScore.row,
+								lastScore.column, lastScore.score);
+						crosspoints.push_back(lastScore);
+						found = true;
+						break;
+					}
+				}
+
+				if(found) break;
 			}
 
-			crosspoints.push_back(last);
+			if(found) break;
+			widthOffset += getNum;
     	}
     }
 
     safeAPIcall(cudaFree(devColumn), __LINE__);
     safeAPIcall(cudaFree(devRow), __LINE__);
     safeAPIcall(cudaFree(devVBusOut), __LINE__);
+    safeAPIcall(cudaFree(devLast), __LINE__);
 
     free(specialRow);
+    free(last);
 
     safeAPIcall(cudaFree(hBuffer.up), __LINE__);
     freeVerticalBuffer(&vBuffer);

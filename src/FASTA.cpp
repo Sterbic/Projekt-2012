@@ -1,10 +1,3 @@
-/*
- * FASTA.cpp
- *
- *  Created on: Nov 7, 2012
- *      Author: Luka
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +17,7 @@ FASTAsequence::FASTAsequence(char *fileName) {
 FASTAsequence::~FASTAsequence() {
 	if(sequenceName != NULL) free(sequenceName);
 	if(sequence != NULL) free(sequence);
-	if(reverseSequence != NULL) free(sequence);
+	if(reverseSequence != NULL) free(reverseSequence);
 }
 
 char *FASTAsequence::getSequenceName() {

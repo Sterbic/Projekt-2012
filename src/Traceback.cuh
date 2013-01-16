@@ -254,7 +254,8 @@ __global__ void tracebackLastShort(
 		int secondLength,
 		scoring values,
 		bool gap,
-		TracebackScore *last
+		TracebackScore *last,
+		int targetScore
 		) {
 
 	extern __shared__ int2 iHbuffer[];
@@ -317,7 +318,7 @@ __global__ void tracebackLastShort(
 			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
 			iBuffer.curr3.x = max(iBuffer.curr3.y, max(iBuffer.curr3.z, iBuffer.left2.x + matchMismatch));
 
-			checkStartPoint(&iBuffer, last);
+			checkStartPoint(&iBuffer, i, j, targetScore, last);
 
 			if(threadIdx.x < blockDim.x - 1) {
 				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;
@@ -367,7 +368,8 @@ __global__ void tracebackLastLong(
 		int secondLength,
 		scoring values,
 		bool gap,
-		TracebackScore *last
+		TracebackScore *last,
+		int targetScore
 		) {
 
 	extern __shared__ int2 iHbuffer[];
@@ -423,7 +425,7 @@ __global__ void tracebackLastLong(
 			iBuffer.curr3.z = max(iBuffer.curr2.z + values.extension, iBuffer.curr2.x + values.first);
 			iBuffer.curr3.x = max(iBuffer.curr3.y, max(iBuffer.curr3.z, iBuffer.left2.x + matchMismatch));
 
-			checkStartPoint(&iBuffer, last);
+			checkStartPoint(&iBuffer, i, j, targetScore, last);
 
 			if(threadIdx.x < blockDim.x - 1) {
 				iHbuffer[threadIdx.x + 1].x = iBuffer.curr3.x;

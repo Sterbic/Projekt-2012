@@ -45,16 +45,16 @@ void RowBuilder::dumpShort(int2 *devHBuffer, int dk) {
 			sprintf(fileName, "temp/row_%d.txt", row);
 			FILE *tmp = fopen(fileName, "a");
 
-			printf("Writing in file: %s\n", fileName);
-			printf("Short: C = %d, Count = %d, offset = %d, counter = %d\n",
-									C, count, offset, counter);
+			//printf("Writing in file: %s\n", fileName);
+			//printf("Short: C = %d, Count = %d, offset = %d, counter = %d\n",
+				//					C, count, offset, counter);
 
 			fwrite(hb + offset, sizeof(int2), count, f);
 
 			for (int i = 0; i < count; ++i) {
 				fprintf(tmp, "%d %d\n", (hb + offset + i)->x, (hb + offset + i)->y);
 			}
-			printf("writing done\n");
+			//printf("writing done\n");
 
 			fclose(f);
 			fclose(tmp);
@@ -83,8 +83,8 @@ void RowBuilder::dumpLong(int2 *devHBuffer, int dk) {
 			sprintf(fileName, "temp/row_%d.txt", row);
 			FILE *tmp = fopen(fileName, "a");
 
-			printf("Long: Count = %d, offset = %d, counter = %d\n",
-					C - config->threads, offset, counter);
+			//printf("Long: Count = %d, offset = %d, counter = %d\n",
+				//	C - config->threads, offset, counter);
 
 			fwrite(hb + offset, sizeof(int2), C - config->threads, f);
 
@@ -92,7 +92,7 @@ void RowBuilder::dumpLong(int2 *devHBuffer, int dk) {
 				fprintf(tmp, "%d %d\n", (hb + offset + i)->x, (hb + offset + i)->y);
 			}
 
-			printf("writing done long\n");
+			//printf("writing done long\n");
 
 			fclose(f);
 			fclose(tmp);

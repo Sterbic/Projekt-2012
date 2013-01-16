@@ -13,6 +13,7 @@
 #define VERSION "0.5.4"
 #define ALPHA 4
 #define STAGE_2_PADDING '?'
+#define STAGE_2_PADDING_LAST_ROWS '#'
 
 typedef struct {
     int score;

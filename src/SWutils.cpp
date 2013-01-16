@@ -178,8 +178,8 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 	int gapOpen = -values.first;
 	int gapExtend = -values.extension;
 
-	printf("target = %d, absColIdx = %d, row = %d, rows = %d, cols = %d\n",
-			targetScore, absColIdx, row, rows, cols);
+	//printf("target = %d, absColIdx = %d, row = %d, rows = %d, cols = %d\n",
+		//	targetScore, absColIdx, row, rows, cols);
 
 	TracebackScore score;
 
@@ -194,8 +194,8 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		int scr = rScore + bScore;
 		int aff = rAffine + bAffine + gapOpen - gapExtend;
-		printf("scr = %d, aff = %d\n", scr, aff);
-		printf("rScore = %d, bScore = %d, SRowIdx = %d\n\n", rScore, bScore, sRowIdx);
+	//	printf("scr = %d, aff = %d\n", scr, aff);
+		//printf("rScore = %d, bScore = %d, SRowIdx = %d\n\n", rScore, bScore, sRowIdx);
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 

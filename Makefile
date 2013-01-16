@@ -9,3 +9,7 @@ SWalign: $(HEADERS) $(SRC)
 
 Debug: $(HEADERS) $(SRC)
 	nvcc -o SWalign $(SRC) $(FLAGS) -g
+
+Clean:
+	rm -r temp/
+	mkdir temp
