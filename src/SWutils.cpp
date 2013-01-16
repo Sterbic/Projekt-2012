@@ -199,6 +199,13 @@ TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int row
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
+		if(targetScore - scr < 100) {
+			printf("Diff scr %d\n", targetScore - scr);
+		}
+		if(targetScore - aff < 100) {
+			printf("Diff aff %d\n", targetScore - aff);
+		}
+
 		if (scr == targetScore && !isScrAff) {
 			score.gap = 0;
 			score.column = absColIdx - cols + sRowIdx;

@@ -231,8 +231,8 @@ __global__ void tracebackLong(
 
 		//printf("PreDumping: j = %d, i = %d, FL = %d, SL = %d\n", j, i, firstLength, secondLength);
 		if(j == secondLength) {
-			printf("LongDumping: j = %d, i = %d, %d %d %d %d\n", j, i,
-					iBuffer.left0.x, iBuffer.left1.x, iBuffer.left2.x, iBuffer.left3.x);
+			//printf("LongDumping: j = %d, i = %d, %d %d %d %d\n", j, i,
+				//	iBuffer.left0.x, iBuffer.left1.x, iBuffer.left2.x, iBuffer.left3.x);
 			dumpToVBusOut(vBusOut, &iBuffer, i);
 		}
 
@@ -293,6 +293,11 @@ __global__ void tracebackLastShort(
 			iBuffer.curr0.y = max(iBuffer.left0.y + values.extension, iBuffer.left0.x + values.first);
 			iBuffer.curr0.z = max(iBuffer.up.y + values.extension, iBuffer.up.x + values.first);
 			iBuffer.curr0.x = max(iBuffer.curr0.y, max(iBuffer.curr0.z, iBuffer.diagonal + matchMismatch));
+
+		/*	if(i == 0) {
+				printf("%d %d %d\n", iBuffer.diagonal, iBuffer.left0.y, iBuffer.up.y);
+				printf("y = %d, z = %d, x = %d\n", iBuffer.curr0.y, iBuffer.curr0.z, iBuffer.curr0.x);
+			}*/
 
 			matchMismatch = values.mismatch;
 			if(rowBuffer.x == columnBase)
