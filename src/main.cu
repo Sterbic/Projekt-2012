@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
 		fread(specialRow, sizeof(int2), query.getSecond()->getPaddedLength(), f);
 		fclose(f);
 
-		int getVertical = min(chunkSize, maxTrace.row - specialRowIndex + 1);
+		int getVertical = min(chunkSize, maxTrace.row - specialRowIndex);
 
 		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 				getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
