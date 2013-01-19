@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
 		while(widthOffset < maxTrace.column) {
 
 			int getNum = min(min(chunkSize, getVertical), maxTrace.column - widthOffset + 1);
-			printf("getNum = %d\n, offset = %d\n", getNum, widthOffset + readOffset);
+			printf("getNum = %d, offset = %d\n", getNum, widthOffset + readOffset);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset + readOffset,
 					getNum * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 

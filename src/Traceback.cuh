@@ -285,11 +285,11 @@ __global__ void tracebackLastShort(
 		if(i >= 0 && i < firstLength) {
 			char columnBase = second[j];
 
-			if(i == 572 && j < 600) {
+			/*if(i == 572 && j < 600) {
 				printf("i = %d, j = %d\n", i, j);
 				printf("rowBase = %c %c %c %c\n", rowBuffer.w, rowBuffer.x, rowBuffer.y, rowBuffer.z);
 				printf("colBase = %c\n", columnBase);
-			}
+			}*/
 
 			int matchMismatch = values.mismatch;
 			if(rowBuffer.w == columnBase)
