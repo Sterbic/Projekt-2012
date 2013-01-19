@@ -56,11 +56,21 @@ __device__ void printBuffers(HorizontalBuffer *h, VerticalBuffer *v, int2 *local
 }
 
 __device__ void checkStartPoint(K *iBuffer, int row, int col, int targetScore, TracebackScore *last) {
+	if(targetScore - iBuffer->curr0.x < 11) {
+		printf("row = %d, col = %d\n", row, col);
+		printf("%d\n", targetScore - iBuffer->curr0.x);
+	}
+
 	if(iBuffer->curr0.x == targetScore) {
 		last[threadIdx.x + blockIdx.x * blockDim.x].score = 0;
 		last[threadIdx.x + blockIdx.x * blockDim.x].row = col;
 		last[threadIdx.x + blockIdx.x * blockDim.x].column = row;
 		return;
+	}
+
+	if(targetScore - iBuffer->curr1.x < 11) {
+		printf("row = %d, col = %d\n", row + 1, col);
+		printf("%d\n", targetScore - iBuffer->curr1.x);
 	}
 
 	if(iBuffer->curr1.x == targetScore) {
@@ -70,11 +80,21 @@ __device__ void checkStartPoint(K *iBuffer, int row, int col, int targetScore, T
 		return;
 	}
 
+	if(targetScore - iBuffer->curr2.x < 11) {
+		printf("row = %d, col = %d\n", row + 2, col);
+		printf("%d\n", targetScore - iBuffer->curr2.x);
+	}
+
 	if(iBuffer->curr2.x == targetScore) {
 		last[threadIdx.x + blockIdx.x * blockDim.x].score = 0;
 		last[threadIdx.x + blockIdx.x * blockDim.x].row = col;
 		last[threadIdx.x + blockIdx.x * blockDim.x].column = row + 2;
 		return;
+	}
+
+	if(targetScore - iBuffer->curr3.x < 11) {
+		printf("row = %d, col = %d\n", row + 3, col);
+		printf("%d\n", targetScore - iBuffer->curr3.x);
 	}
 
 	if(iBuffer->curr3.x == targetScore) {

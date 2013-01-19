@@ -172,7 +172,7 @@ void freeGlobalBuffer(GlobalBuffer *buffer) {
     safeAPIcall(cudaFree(buffer->hBuffer.up), __LINE__);
 }
 
-TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
+TracebackScore getTracebackScore(scoring values, int row, int cols,
 		int2 *vBusOut, int2 *specialRow, int targetScore, int absColIdx) {
 										//dodamo target score kao argument, i kad njega nademo, to je crosspoint
 	int gapOpen = -values.first;

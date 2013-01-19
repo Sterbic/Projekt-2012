@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
 
     crosspoints.push_back(maxTrace);
 
-    printf("\nSR size = %ld\n", query.getSecond()->getPaddedLength() * sizeof(int2));
+    //printf("\nSR size = %ld\n", query.getSecond()->getPaddedLength() * sizeof(int2));
 	int2 *specialRow = (int2 *) malloc(query.getSecond()->getPaddedLength() * sizeof(int2));
 	if(specialRow == NULL)
 		exitWithMsg("Error allocating special row.", -1);
@@ -220,6 +220,7 @@ int main(int argc, char *argv[]) {
 		fclose(f);
 
 		int getVertical = min(chunkSize, maxTrace.row - specialRowIndex + 1);
+
 		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 				getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
@@ -233,7 +234,7 @@ int main(int argc, char *argv[]) {
 
 		while(widthOffset < maxTrace.column) {
 
-			int getNum = min(min(chunkSize, getVertical), maxTrace.column - widthOffset);
+			int getNum = min(min(chunkSize, getVertical), maxTrace.column - widthOffset + 1);
 			printf("getNum = %d\n, offset = %d\n", getNum, widthOffset + readOffset);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset + readOffset,
 					getNum * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
@@ -293,12 +294,12 @@ int main(int argc, char *argv[]) {
 			fclose(tmp);
 
 			/*
-			TracebackScore getTracebackScore(scoring values, bool frontGap, int row, int rows, int cols,
-			int2 *vBusOut, int2 *specialRow)
+			TracebackScore getTracebackScore(scoring values, int row, int cols,
+			int2 *vBusOut, int2 *specialRow, int targetScore, int absColIdx);
 			*/
 			
 			TracebackScore tracebackScore = getTracebackScore(
-					values, gap, specialRowIndex - 1, chunkSize, getNum, vBusOut,
+					values, specialRowIndex - 1, getNum, vBusOut,
 					specialRow + maxTrace.column - widthOffset - getNum, maxTrace.score, maxTrace.column - widthOffset);
 			//printf("\nTrace [%d, %d] = %d\n", tracebackScore.row, tracebackScore.column, tracebackScore.score);
 
@@ -329,6 +330,8 @@ int main(int argc, char *argv[]) {
 		}
     }
 
+    //########################### finding alignment start point ###################################
+
     printf("\nStarting last with target score %d\n", maxTrace.score);
 
     char padLastRows[240];
@@ -342,6 +345,7 @@ int main(int argc, char *argv[]) {
 
     if(maxTrace.score != 0) {
     	int getVertical = min(chunkSize, maxTrace.row + 1);
+    	printf("getv = %d", getVertical);
     	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
     			getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
@@ -351,7 +355,7 @@ int main(int argc, char *argv[]) {
 
     	bool found = false;
     	while(widthOffset < maxTrace.column) {
-    		int getNum = min(chunkSize, max.column - widthOffset);
+    		int getNum = min(chunkSize, max.column - widthOffset + 1);
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
 					getNum * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
