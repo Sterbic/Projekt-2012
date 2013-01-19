@@ -180,7 +180,7 @@ TracebackScore getTracebackScore(scoring values, int row, int cols,
 
 	//printf("target = %d, absColIdx = %d, row = %d, rows = %d, cols = %d\n",
 		//	targetScore, absColIdx, row, rows, cols);
-
+	printf("SR0 = %d\n", specialRow[0].x);
 	TracebackScore score;
 
 	int sRowIdx, vBusIdx;
@@ -199,12 +199,12 @@ TracebackScore getTracebackScore(scoring values, int row, int cols,
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
-		if(targetScore - scr < 100) {
-			printf("Diff scr %d\n", targetScore - scr);
+	/*	if(targetScore - scr < 100) {
+			printf("Diff scr %d, target = %d, rS = %d, bS = %d\n", targetScore - scr, targetScore, rScore, bScore);
 		}
 		if(targetScore - aff < 100) {
 			printf("Diff aff %d\n", targetScore - aff);
-		}
+		}*/
 
 		if (scr == targetScore && !isScrAff) {
 			score.gap = 0;
@@ -235,6 +235,9 @@ LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 	
 	config.blocks = gpu.cudaCores / 2;
 	config.threads = gpu.maxThreadsPerBlock / 8;
+
+	//config.blocks = 2;
+	//config.threads = 5;
 	
 	if (config.threads * config.blocks * 2 > shorterSeqLength)
         config.blocks = (int) ((float) (shorterSeqLength) / (config.threads * 2));

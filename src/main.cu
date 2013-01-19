@@ -287,9 +287,9 @@ int main(int argc, char *argv[]) {
 			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut + paddedChunkWidth - getNum, // po meni, tu je getNum, a ne chunkSize
 					getNum * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
 
-			FILE *tmp = fopen("temp/vbusout.txt", "w");
+			FILE *tmp = fopen("temp/vbusout.txt", "a");
 			for(int i = 0; i < getNum; i++) {
-				fprintf(tmp, "%d %d\n", (vBusOut + i)->x, (vBusOut + i)->x);
+				fprintf(tmp, "%d %d\n", (vBusOut + i)->x, (vBusOut + i)->y);
 			}
 			fclose(tmp);
 
@@ -300,7 +300,7 @@ int main(int argc, char *argv[]) {
 			
 			TracebackScore tracebackScore = getTracebackScore(
 					values, specialRowIndex - 1, getNum, vBusOut,
-					specialRow + maxTrace.column - widthOffset - getNum, maxTrace.score, maxTrace.column - widthOffset);
+					specialRow + maxTrace.column - widthOffset - getNum - 1, maxTrace.score, maxTrace.column - widthOffset);
 			//printf("\nTrace [%d, %d] = %d\n", tracebackScore.row, tracebackScore.column, tracebackScore.score);
 
 			if(tracebackScore.column != -1) {
@@ -423,7 +423,9 @@ int main(int argc, char *argv[]) {
 						lastScore.column = maxTrace.column - last[i].column - widthOffset;
 						lastScore.gap = false;
 
-						printf("last[i].row = %d, maxTrace.row = %d\n", last[i].row, maxTrace.row);
+						printf("last[i].row = %d, maxTrace.row = %d, wo = %d\n", last[i].row, maxTrace.row, widthOffset);
+						printf("last[i].col = %d, maxTrace.col = %d\n", last[i].column, maxTrace.column);
+
 						printf("Found last in long: [%d, %d] = %d\n", lastScore.row,
 								lastScore.column, lastScore.score);
 						crosspoints.push_back(lastScore);
