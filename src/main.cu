@@ -12,6 +12,7 @@
 #include "FindAlignment.cuh"
 #include "SWutils.h"
 #include "Traceback.cuh"
+#include "Crosspointer.h"
 
 int main(int argc, char *argv[]) {
     printf("### Welcome to SWalign v%s\n\n", VERSION);
@@ -145,7 +146,18 @@ int main(int argc, char *argv[]) {
 
     free(score);
 
-	//######################## traceback #################################
+    // ######################## traceback - new #################################
+
+    printf("> Creating Crosspointer object... ");
+    Crosspointer xPointer(&query, &bestGpu, max, rowBuilder.getRowHeight());
+    printf("DONE\n\n");
+
+    printf("> Starting crosspointing process... ");
+    std::vector<TracebackScore> xPoints;
+    xPoints = xPointer.findCrosspoints();
+    printf("DONE\n\n");
+
+	//######################## traceback - old #################################
     HorizontalBuffer hBuffer;
     int2 *hBufferUp = (int2 *) malloc(sizeof(int2) * rowBuilder.getRowHeight());
     if(hBufferUp == NULL)
