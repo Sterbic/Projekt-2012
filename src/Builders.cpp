@@ -13,7 +13,7 @@ RowBuilder::RowBuilder(int firstLen, int secondLen, LaunchConfig *config) {
 	this->secondLen = secondLen;
 	this->config = config;
 
-	this->rowHeight = ALPHA * config->threads * 10;
+	this->rowHeight = ALPHA * config->threads;
 
 	hb = (int2 *) malloc(secondLen * sizeof(int2));
 	if(hb == NULL)

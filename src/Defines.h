@@ -1,10 +1,3 @@
-/*
- * Defines.h
- *
- *  Created on: Dec 4, 2012
- *      Author: Luka
- */
-
 #ifndef DEFINES_H_
 #define DEFINES_H_
 
@@ -14,6 +7,10 @@
 #define ALPHA 4
 #define STAGE_2_PADDING '?'
 #define STAGE_2_PADDING_LAST_ROWS '#'
+
+#define TRACEBACK_LAST_SHORT 1
+#define TRACEBACK_LAST_LONG 2
+#define TRACEBACK_SHORT_LONG 3
 
 typedef struct {
     int score;
@@ -38,4 +35,4 @@ typedef struct {
 	HorizontalBuffer hBuffer;
 } GlobalBuffer;
 
-#endif /* DEFINES_H_ */
+#endif

@@ -236,8 +236,8 @@ LaunchConfig getLaunchConfig(int shorterSeqLength, CUDAcard gpu) {
 	config.blocks = gpu.cudaCores / 2;
 	config.threads = gpu.maxThreadsPerBlock / 8;
 
-	//config.blocks = 2;
-	//config.threads = 5;
+	config.blocks = 2;
+	config.threads = 5;
 	
 	if (config.threads * config.blocks * 2 > shorterSeqLength)
         config.blocks = (int) ((float) (shorterSeqLength) / (config.threads * 2));

@@ -11,8 +11,87 @@
 #include "FASTA.h"
 #include "FindAlignment.cuh"
 #include "SWutils.h"
-#include "Traceback.cuh"
+#include "TraceBack.cuh"
 #include "Crosspointer.h"
+
+extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *devLast, int kernel) {
+	printf("Kernel call %d\n", dk);
+
+	if(kernel == TRACEBACK_LAST_SHORT) {
+		tracebackLastShort<<<
+				xPointer->getStdLaunchConfig().blocks,
+				xPointer->getStdLaunchConfig().threads,
+				xPointer->getStdLaunchConfig().sharedMemSize
+				>>>(
+				dk,
+				xPointer->getHBuffer(),
+				xPointer->getVBuffer(),
+				xPointer->getDevRow(),
+				xPointer->getSrHeight(),
+				xPointer->getDevColumn(),
+				xPointer->getSrHeight(),
+				xPointer->getValues(),
+				xPointer->getGap(),
+				devLast,
+				xPointer->getTarget().score
+				);
+	} else if(kernel == TRACEBACK_LAST_LONG) {
+		tracebackLastLong<<<
+				xPointer->getStdLaunchConfig().blocks,
+				xPointer->getStdLaunchConfig().threads,
+				xPointer->getStdLaunchConfig().sharedMemSize
+				>>>(
+					dk,
+					xPointer->getHBuffer(),
+					xPointer->getVBuffer(),
+					xPointer->getDevRow(),
+					xPointer->getSrHeight(),
+					xPointer->getDevColumn(),
+					xPointer->getSrHeight(),
+					xPointer->getValues(),
+					xPointer->getGap(),
+					devLast,
+					xPointer->getTarget().score
+					);
+	} else if(kernel == TRACEBACK_SHORT_LONG) {
+		tracebackShort<<<
+				xPointer->getStdLaunchConfig().blocks,
+				xPointer->getStdLaunchConfig().threads,
+				xPointer->getStdLaunchConfig().sharedMemSize
+				>>>(
+					dk,
+					xPointer->getHBuffer(),
+					xPointer->getVBuffer(),
+					xPointer->getDevRow(),
+					xPointer->getSrHeight(),
+					xPointer->getDevColumn(),
+					xPointer->getSrHeight(),
+					xPointer->getValues(),
+					xPointer->getVBusOut(),
+					xPointer->getGap()
+					);
+
+		tracebackLong<<<
+				xPointer->getStdLaunchConfig().blocks,
+				xPointer->getStdLaunchConfig().threads,
+				xPointer->getStdLaunchConfig().sharedMemSize
+				>>>(
+					dk,
+					xPointer->getHBuffer(),
+					xPointer->getVBuffer(),
+					xPointer->getDevRow(),
+					xPointer->getSrHeight(),
+					xPointer->getDevColumn(),
+					xPointer->getSrHeight(),
+					xPointer->getValues(),
+					xPointer->getVBusOut(),
+					xPointer->getGap()
+					);
+	}
+	else {
+		exitWithMsg("Unknown kernel type passed to wrapper.", -1);
+	}
+}
 
 int main(int argc, char *argv[]) {
     printf("### Welcome to SWalign v%s\n\n", VERSION);
@@ -149,7 +228,7 @@ int main(int argc, char *argv[]) {
     // ######################## traceback - new #################################
 
     printf("> Creating Crosspointer object... ");
-    Crosspointer xPointer(&query, &bestGpu, max, rowBuilder.getRowHeight());
+    Crosspointer xPointer(&query, &bestGpu, &values, max, rowBuilder.getRowHeight());
     printf("DONE\n\n");
 
     printf("> Starting crosspointing process... ");
@@ -158,6 +237,7 @@ int main(int argc, char *argv[]) {
     printf("DONE\n\n");
 
 	//######################## traceback - old #################################
+    /*
     HorizontalBuffer hBuffer;
     int2 *hBufferUp = (int2 *) malloc(sizeof(int2) * rowBuilder.getRowHeight());
     if(hBufferUp == NULL)
@@ -294,7 +374,7 @@ int main(int argc, char *argv[]) {
 				fprintf(tmp1, "%d %d\n", (vBusPadded + i)->x, (vBusPadded + i)->x);
 			}
 			fclose(tmp1);
-			free(vBusPadded); */
+			free(vBusPadded); */ /*
 
 			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut + paddedChunkWidth - getNum, // po meni, tu je getNum, a ne chunkSize
 					getNum * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
@@ -308,7 +388,7 @@ int main(int argc, char *argv[]) {
 			/*
 			TracebackScore getTracebackScore(scoring values, int row, int cols,
 			int2 *vBusOut, int2 *specialRow, int targetScore, int absColIdx);
-			*/
+			*//*
 			
 			TracebackScore tracebackScore = getTracebackScore(
 					values, specialRowIndex - 1, getNum, vBusOut,
@@ -466,6 +546,7 @@ int main(int argc, char *argv[]) {
 
     safeAPIcall(cudaFree(hBuffer.up), __LINE__);
     freeVerticalBuffer(&vBuffer);
+    */
 
     return 0;
 }
