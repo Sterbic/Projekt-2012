@@ -7,7 +7,7 @@ HEADERS := $(wildcard $(SRC_DIR)/*.h $(SRC_DIR)/*.cuh)
 SWalign: clean $(HEADERS) $(SRC)
 	nvcc -o $@ $(SRC) $(FLAGS)
 
-debug: $(HEADERS) $(SRC)
+debug: clean $(HEADERS) $(SRC)
 	nvcc -o SWalign $(SRC) $(FLAGS) -g
 
 clean:

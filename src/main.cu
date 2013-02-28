@@ -15,7 +15,7 @@
 #include "Crosspointer.h"
 
 extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *devLast, int kernel) {
-	printf("Kernel call %d\n", dk);
+	printf("Entered kernel wrapper with dk=%d and and kernel=%d\n", dk, kernel);
 
 	if(kernel == TRACEBACK_LAST_SHORT) {
 		tracebackLastShort<<<
@@ -71,6 +71,8 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 					xPointer->getGap()
 					);
 
+		safeAPIcall(cudaDeviceSynchronize(), __LINE__);
+
 		tracebackLong<<<
 				xPointer->getStdLaunchConfig().blocks,
 				xPointer->getStdLaunchConfig().threads,
@@ -91,6 +93,8 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 	else {
 		exitWithMsg("Unknown kernel type passed to wrapper.", -1);
 	}
+
+	safeAPIcall(cudaDeviceSynchronize(), __LINE__);
 }
 
 int main(int argc, char *argv[]) {

@@ -39,7 +39,7 @@ Crosspointer::Crosspointer(SWquery *query, CUDAcard *gpu, scoring *values, align
 	if(vBusOut == NULL)
 		exitWithMsg("Allocation error vBusOut", -1);
 
-	devVBusOut = (int2 *) cudaGetSpaceAndSet(srHeight * sizeof(int2), 0);
+	this->devVBusOut = (int2 *) cudaGetSpaceAndSet(srHeight * sizeof(int2), 0);
 
 	firstReversed = query->getFirst()->getReversedSequence(target.row);
 	secondReversed = query->getSecond()->getReversedSequence(target.column);
@@ -137,10 +137,9 @@ bool Crosspointer::findXtoFirstSR() {
 
 		memset(vBusOut, 0, srHeight * sizeof(int2));
 		printf("vPad = %d, getH = %d\n", verticalPadding, getHorizontal);
-		printf("devvbou %d, vbo %d\n", vBusOut, devVBusOut);
+		printf("devvbou %d, vbo %d, offset = %d\n", vBusOut, devVBusOut, srHeight - getHorizontal);
 
-		safeAPIcall(cudaMemcpy(vBusOut, devVBusOut + srHeight - getHorizontal,
-				sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
+		safeAPIcall(cudaMemcpy(vBusOut, devVBusOut, srHeight * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
 
 		TracebackScore tracebackScore = getTracebackScore(
 				*values, srIndex - 1, getHorizontal, vBusOut,
