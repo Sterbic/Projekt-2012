@@ -194,8 +194,8 @@ TracebackScore getTracebackScore(scoring values, int row, int cols,
 
 		int scr = rScore + bScore;
 		int aff = rAffine + bAffine + gapOpen - gapExtend;
-	//	printf("scr = %d, aff = %d\n", scr, aff);
-		//printf("rScore = %d, bScore = %d, SRowIdx = %d\n\n", rScore, bScore, sRowIdx);
+		printf("scr = %d, aff = %d\n", scr, aff);
+		printf("rScore = %d, bScore = %d, SRowIdx = %d\n\n", rScore, bScore, sRowIdx);
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 

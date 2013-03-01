@@ -55,6 +55,7 @@ Crosspointer::Crosspointer(SWquery *query, CUDAcard *gpu, scoring *values, align
 	readOffset = 0;
 	heightOffset = 0;
 	widthOffset = 0;
+	initVBusOffset = 0;
 
 	pad = (char *) malloc(srHeight * sizeof(char));
 	if(pad == NULL)
@@ -136,7 +137,7 @@ bool Crosspointer::findXtoFirstSR() {
 		}
 
 		memset(vBusOut, 0, srHeight * sizeof(int2));
-		printf("vPad = %d, getH = %d\n", verticalPadding, getHorizontal);
+		//printf("vPad = %d, getH = %d\n", verticalPadding, getHorizontal);
 		//printf("devvbou %d, vbo %d, offset = %d\n", vBusOut, devVBusOut, srHeight - getHorizontal);
 
 		safeAPIcall(cudaMemcpy(vBusOut, devVBusOut, srHeight * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
@@ -147,9 +148,13 @@ bool Crosspointer::findXtoFirstSR() {
 		}
 		fclose(tmp);
 
+		printf("sr[79] = %d %d\n", specialRow[79].x, specialRow[79].y);
+		int2 *ptr = specialRow + target.column - widthOffset - getHorizontal;
+		printf("sr[79] = %d %d\n", ptr->x, ptr->y);
+
 		TracebackScore tracebackScore = getTracebackScore(
-				*values, srIndex - 1, getHorizontal, vBusOut,
-				specialRow + target.column - widthOffset - getHorizontal - 1,
+				*values, srIndex, getHorizontal, vBusOut,
+				specialRow + target.column - widthOffset - getHorizontal,
 				target.score, target.column - widthOffset);
 
 		if(tracebackScore.column != -1) {
@@ -229,8 +234,12 @@ void Crosspointer::findStartX() {
 		}
 
 		if(found) break;
+
 		widthOffset += getHorizontal;
+		initVBusOffset += getHorizontal;
 	}
+
+	initVBusOffset = 0;
 
 	free(last);
 	safeAPIcall(cudaFree(devLast), __LINE__);
@@ -294,4 +303,8 @@ TracebackScore Crosspointer::getTarget() {
 
 int2 *Crosspointer::getDevVBusOut() {
 	return devVBusOut;
+}
+
+int Crosspointer::getInitVBusOffset() {
+	return initVBusOffset;
 }

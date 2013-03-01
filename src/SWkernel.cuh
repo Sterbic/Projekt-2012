@@ -128,16 +128,16 @@ __device__ void initK(K *k, int i, int j, int2 * lHbuffer, VerticalBuffer *vbuff
 }
 
 __device__ void initReverseK(K *k, int i, int j, HorizontalBuffer *hbuffer,
-		VerticalBuffer *vbuffer, scoring values, bool gap) {
+		VerticalBuffer *vbuffer, scoring values, bool gap, int initVBusOffset) {
 	int index = (i / ALPHA) % (blockDim.x * gridDim.x);
 
 	if(j == 0) {
-		k->diagonal = (i != 0) * (values.first + (i - 1) * values.extension + gap * values.first);
+		k->diagonal = (i != 0) * (values.first + (i - 1 + initVBusOffset) * values.extension + gap * values.first);
 
-		k->left0.x = (values.first + (i - 1) * values.extension + gap * values.first);
-		k->left1.x = (values.first + (i - 1) * values.extension + gap * values.first);
-		k->left2.x = (values.first + (i - 1) * values.extension + gap * values.first);
-		k->left3.x = (values.first + (i - 1) * values.extension + gap * values.first);
+		k->left0.x = (values.first + (i + 0 + initVBusOffset) * values.extension + gap * values.first);
+		k->left1.x = (values.first + (i + 1 + initVBusOffset) * values.extension + gap * values.first);
+		k->left2.x = (values.first + (i + 2 + initVBusOffset) * values.extension + gap * values.first);
+		k->left3.x = (values.first + (i + 3 + initVBusOffset) * values.extension + gap * values.first);
 
 		k->left0.y = k->left0.x;
 		k->left1.y = k->left1.x;

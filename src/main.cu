@@ -15,8 +15,6 @@
 #include "Crosspointer.h"
 
 extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *devLast, int kernel) {
-	printf("Entered kernel wrapper with dk=%d and and kernel=%d\n", dk, kernel);
-
 	if(kernel == TRACEBACK_LAST_SHORT) {
 		tracebackLastShort<<<
 				xPointer->getStdLaunchConfig().blocks,
@@ -33,7 +31,8 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 				xPointer->getValues(),
 				xPointer->getGap(),
 				devLast,
-				xPointer->getTarget().score
+				xPointer->getTarget().score,
+				xPointer->getInitVBusOffset()
 				);
 	} else if(kernel == TRACEBACK_LAST_LONG) {
 		tracebackLastLong<<<
@@ -51,7 +50,8 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 					xPointer->getValues(),
 					xPointer->getGap(),
 					devLast,
-					xPointer->getTarget().score
+					xPointer->getTarget().score,
+					xPointer->getInitVBusOffset()
 					);
 	} else if(kernel == TRACEBACK_SHORT_LONG) {
 		tracebackShort<<<
@@ -68,7 +68,8 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 					xPointer->getSrHeight(),
 					xPointer->getValues(),
 					xPointer->getDevVBusOut(),
-					xPointer->getGap()
+					xPointer->getGap(),
+					xPointer->getInitVBusOffset()
 					);
 
 		safeAPIcall(cudaDeviceSynchronize(), __LINE__);
@@ -87,7 +88,8 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 					xPointer->getSrHeight(),
 					xPointer->getValues(),
 					xPointer->getDevVBusOut(),
-					xPointer->getGap()
+					xPointer->getGap(),
+					xPointer->getInitVBusOffset()
 					);
 	}
 	else {

@@ -14,7 +14,8 @@ __global__ void tracebackShort(
 		int secondLength,
 		scoring values,
 		int2 *vBusOut,
-		bool gap
+		bool gap,
+		int initVBusOffset
 		) {
 
 	extern __shared__ int2 iHbuffer[];
@@ -35,7 +36,7 @@ __global__ void tracebackShort(
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
-		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap, initVBusOffset);
 
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; ++innerDiagonal) {
 
@@ -140,7 +141,8 @@ __global__ void tracebackLong(
 		int secondLength,
 		scoring values,
 		int2 *vBusOut,
-		bool gap
+		bool gap,
+		int initVBusOffset
 		) {
 
 	extern __shared__ int2 iHbuffer[];
@@ -155,7 +157,7 @@ __global__ void tracebackLong(
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
-		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap, initVBusOffset);
 
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; ++innerDiagonal) {
 
@@ -255,7 +257,8 @@ __global__ void tracebackLastShort(
 		scoring values,
 		bool gap,
 		TracebackScore *last,
-		int targetScore
+		int targetScore,
+		int initVBusOffset
 		) {
 
 	extern __shared__ int2 iHbuffer[];
@@ -276,7 +279,7 @@ __global__ void tracebackLastShort(
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
-		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap, initVBusOffset);
 
 	for(int innerDiagonal = 0; innerDiagonal < blockDim.x; ++innerDiagonal) {
 
@@ -379,7 +382,8 @@ __global__ void tracebackLastLong(
 		scoring values,
 		bool gap,
 		TracebackScore *last,
-		int targetScore
+		int targetScore,
+		int initVBusOffset
 		) {
 
 	extern __shared__ int2 iHbuffer[];
@@ -394,7 +398,7 @@ __global__ void tracebackLastLong(
 
 	K iBuffer;
 	if(i >= 0 && i < firstLength)
-		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap);
+		initReverseK(&iBuffer, i, j, &hbuffer, &vbuffer, values, gap, initVBusOffset);
 
 	for(int innerDiagonal = blockDim.x; innerDiagonal < C; ++innerDiagonal) {
 

@@ -42,6 +42,7 @@ private:
 	int readOffset;
 	int heightOffset;
 	int widthOffset;
+	int initVBusOffset;
 
 	void doStage2Cross();
 	bool findXtoFirstSR();
@@ -70,6 +71,7 @@ public:
 	scoring getValues();
 	TracebackScore getTarget();
 	int2 *getDevVBusOut();
+	int getInitVBusOffset();
 };
 
 extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *devLast, int kernel);
