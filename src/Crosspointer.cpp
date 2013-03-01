@@ -137,9 +137,15 @@ bool Crosspointer::findXtoFirstSR() {
 
 		memset(vBusOut, 0, srHeight * sizeof(int2));
 		printf("vPad = %d, getH = %d\n", verticalPadding, getHorizontal);
-		printf("devvbou %d, vbo %d, offset = %d\n", vBusOut, devVBusOut, srHeight - getHorizontal);
+		//printf("devvbou %d, vbo %d, offset = %d\n", vBusOut, devVBusOut, srHeight - getHorizontal);
 
 		safeAPIcall(cudaMemcpy(vBusOut, devVBusOut, srHeight * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
+
+		FILE *tmp = fopen("temp/vbusout.txt", "a");
+		for(int i = 0; i < getHorizontal; i++) {
+			fprintf(tmp, "%d %d\n", (vBusOut + i)->x, (vBusOut + i)->y);
+		}
+		fclose(tmp);
 
 		TracebackScore tracebackScore = getTracebackScore(
 				*values, srIndex - 1, getHorizontal, vBusOut,
@@ -286,6 +292,6 @@ TracebackScore Crosspointer::getTarget() {
 	return target;
 }
 
-int2 *Crosspointer::getVBusOut() {
-	return vBusOut;
+int2 *Crosspointer::getDevVBusOut() {
+	return devVBusOut;
 }

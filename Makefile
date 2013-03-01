@@ -8,7 +8,7 @@ SWalign: clean $(HEADERS) $(SRC)
 	nvcc -o $@ $(SRC) $(FLAGS)
 
 debug: clean $(HEADERS) $(SRC)
-	nvcc -o SWalign $(SRC) $(FLAGS) -g
+	nvcc -o SWalign $(SRC) $(FLAGS) -G
 
 clean:
 	rm -r temp/

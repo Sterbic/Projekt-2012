@@ -67,7 +67,7 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 					xPointer->getDevColumn(),
 					xPointer->getSrHeight(),
 					xPointer->getValues(),
-					xPointer->getVBusOut(),
+					xPointer->getDevVBusOut(),
 					xPointer->getGap()
 					);
 
@@ -86,7 +86,7 @@ extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *
 					xPointer->getDevColumn(),
 					xPointer->getSrHeight(),
 					xPointer->getValues(),
-					xPointer->getVBusOut(),
+					xPointer->getDevVBusOut(),
 					xPointer->getGap()
 					);
 	}

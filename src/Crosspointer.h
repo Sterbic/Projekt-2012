@@ -69,7 +69,7 @@ public:
 	bool getGap();
 	scoring getValues();
 	TracebackScore getTarget();
-	int2 *getVBusOut();
+	int2 *getDevVBusOut();
 };
 
 extern "C" void kernelWrapperTB(Crosspointer *xPointer, int dk, TracebackScore *devLast, int kernel);

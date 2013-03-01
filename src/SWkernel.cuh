@@ -210,7 +210,7 @@ __device__ void updateVerticalBuffer(K *k, VerticalBuffer *vbuffer, int i) {
 }
 
 __device__ void dumpToVBusOut(int2 *vBusOut, K *iBuffer, int i) {
-	vBusOut[i] = make_int2(iBuffer->curr0.x, iBuffer->curr0.y);
+	vBusOut[i + 0] = make_int2(iBuffer->curr0.x, iBuffer->curr0.y);
 	vBusOut[i + 1] = make_int2(iBuffer->curr1.x, iBuffer->curr1.y);
 	vBusOut[i + 2] = make_int2(iBuffer->curr2.x, iBuffer->curr2.y);
 	vBusOut[i + 3] = make_int2(iBuffer->curr3.x, iBuffer->curr3.y);
