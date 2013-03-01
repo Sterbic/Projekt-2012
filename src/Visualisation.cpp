@@ -15,7 +15,7 @@ void visualOutput(char *firstSequence, char *secondSequence, const char *firstFi
     int gapBegin;
     int gapLength;
 
-    printf("\tCTRL: in visual output\n");
+    //printf("\tCTRL: in visual output\n");
 
     FILE *firstGapList = fopen(firstFilename, "rb");
     FILE *secondGapList = fopen(secondFilename, "rb");
