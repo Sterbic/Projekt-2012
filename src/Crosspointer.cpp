@@ -62,6 +62,8 @@ Crosspointer::Crosspointer(SWquery *query, CUDAcard *gpu, scoring *values, align
 		exitWithMsg("Error allocating pad array.", -1);
 
 	memset(pad, STAGE_2_PADDING, srHeight * sizeof(char));
+
+	file = NULL;
 }
 
 Crosspointer::~Crosspointer() {
@@ -84,6 +86,16 @@ void Crosspointer::prepareFileName() {
 	sprintf(fileName, "temp/row_%d", srIndex + 1);
 }
 
+void Crosspointer::openSRFile() {
+	prepareFileName();
+	file = fopen(fileName, "rb");
+	if(file == NULL)
+		exitWithMsg("Error opening special row file.", -1);
+
+	fread(specialRow, sizeof(int2), query->getSecond()->getPaddedLength(), file);
+	fclose(file);
+}
+
 std::vector<TracebackScore> Crosspointer::findCrosspoints() {
 	doStage2Cross();
 	return xPoints;
@@ -95,7 +107,60 @@ void Crosspointer::doStage2Cross() {
 }
 
 void Crosspointer::findXonSpecRows() {
+	printf("Starting spec row X\n");
+	while(srIndex <= 0) {
+		openSRFile();
 
+		int getVertical = srHeight;
+
+		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
+				getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
+
+		bool found = false;
+		while(widthOffset < target.column) {
+			int getHorizontal = std::min(srHeight, target.column - widthOffset);
+
+			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
+					getHorizontal * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
+
+			if(getHorizontal < srHeight) doPadding(devRow, getHorizontal);
+
+			for(int dk = 0; dk < D + stdLaunchConfig.blocks; ++dk) {
+				kernelWrapperTB(this, dk, NULL, TRACEBACK_SHORT_LONG);
+			}
+
+			memset(vBusOut, 0, srHeight * sizeof(int2));
+
+			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut, srHeight * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
+
+			TracebackScore tracebackScore = getTracebackScore(
+					*values, srIndex, getHorizontal, vBusOut,
+					specialRow + target.column - widthOffset - getHorizontal,
+					target.score, target.column - widthOffset);
+
+			widthOffset += getHorizontal;
+			initVBusOffset += getHorizontal;
+
+			if(tracebackScore.column != -1) {
+				target = tracebackScore;
+				gap = tracebackScore.gap;
+
+				printf("Crosspoint [%d, %d] = %d\n", target.row, target.column, target.score);
+				xPoints.push_back(tracebackScore);
+
+				srIndex -= srHeight;
+				heightOffset += getVertical;
+
+				found = true;
+				break;
+			}
+		}
+
+		reInitHBuffer();
+		initVBusOffset = 0;
+
+		if(widthOffset >= target.column) return;
+	}
 }
 
 void Crosspointer::doPadding(char *devPtr, int get) {
@@ -104,14 +169,7 @@ void Crosspointer::doPadding(char *devPtr, int get) {
 }
 
 bool Crosspointer::findXtoFirstSR() {
-	prepareFileName();
-
-	FILE *f = fopen(fileName, "rb");
-	if(f == NULL)
-		exitWithMsg("Error opening special row file.", -1);
-
-	fread(specialRow, sizeof(int2), query->getSecond()->getPaddedLength(), f);
-	fclose(f);
+	openSRFile();
 
 	int getVertical = target.row - srIndex;
 	int verticalPadding = srHeight - getVertical;
@@ -157,6 +215,9 @@ bool Crosspointer::findXtoFirstSR() {
 				specialRow + target.column - widthOffset - getHorizontal,
 				target.score, target.column - widthOffset);
 
+		widthOffset += getHorizontal;
+		initVBusOffset += getHorizontal;
+
 		if(tracebackScore.column != -1) {
 			target = tracebackScore;
 			gap = tracebackScore.gap;
@@ -166,13 +227,11 @@ bool Crosspointer::findXtoFirstSR() {
 
 			srIndex -= srHeight;
 			heightOffset += getVertical;
+			initVBusOffset = 0;
 
 			reInitHBuffer();
 
 			return true;
-		}
-		else {
-			widthOffset += getHorizontal;
 		}
 	}
 

@@ -22,6 +22,7 @@ private:
 	scoring *values;
 	int srIndex;
 	char fileName[50];
+	FILE *file;
 	LaunchConfig stdLaunchConfig;
 	TracebackScore target;
 	std::vector<TracebackScore> xPoints;
@@ -53,6 +54,7 @@ private:
 	void prepareFileName();
 	bool foundLast(TracebackScore *last);
 	void doPadding(char *devPtr, int get);
+	void openSRFile();
 
 public:
 	Crosspointer(SWquery *query, CUDAcard *gpu, scoring *values, alignmentScore endPoint, int srHeight);
