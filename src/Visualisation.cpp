@@ -5,6 +5,7 @@
 # include <string.h>
 # include <vector>
 
+# include "Defines.h"
 # include "Visualisation.h"
 
 void visualOutput(char *firstSequence, char *secondSequence, const char *firstFilename,
