@@ -3,10 +3,10 @@
 
 #include <vector_types.h>
 
-#define VERSION "0.6.2"
+#define VERSION "0.6.3"
 #define ALPHA 4
 #define STAGE_2_PADDING '?'
-#define STAGE_2_PADDING_LAST_ROWS '#'
+#define STAGE_2_PADDING_LAST '#'
 
 #define TRACEBACK_LAST_SHORT 1
 #define TRACEBACK_LAST_LONG 2

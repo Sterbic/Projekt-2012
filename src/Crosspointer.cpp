@@ -60,8 +60,12 @@ Crosspointer::Crosspointer(SWquery *query, CUDAcard *gpu, scoring *values, align
 	pad = (char *) malloc(srHeight * sizeof(char));
 	if(pad == NULL)
 		exitWithMsg("Error allocating pad array.", -1);
-
 	memset(pad, STAGE_2_PADDING, srHeight * sizeof(char));
+
+	padLast = (char *) malloc(srHeight * sizeof(char));
+	if(padLast == NULL)
+		exitWithMsg("Error allocating padLast array.", -1);
+	memset(padLast, STAGE_2_PADDING_LAST, srHeight * sizeof(char));
 
 	file = NULL;
 }
@@ -75,6 +79,7 @@ Crosspointer::~Crosspointer() {
 	if(devVBusOut != NULL) safeAPIcall(cudaFree(devVBusOut), __LINE__);
 	if(specialRow != NULL) free(specialRow);
 	if(pad != NULL) free(pad);
+	if(padLast != NULL) free(padLast);
 }
 
 void Crosspointer::reInitHBuffer() {
@@ -104,7 +109,7 @@ std::vector<TracebackScore> Crosspointer::findCrosspoints() {
 
 void Crosspointer::doStage2Cross() {
 	if(findXtoFirstSR()) findXonSpecRows();
-	//findStartX();
+	findStartX();
 }
 
 void Crosspointer::findXonSpecRows() {
@@ -122,7 +127,7 @@ void Crosspointer::findXonSpecRows() {
 
 		bool found = false;
 		while(widthOffset < target.column) {
-			int getHorizontal = std::min(srHeight, target.column - widthOffset);
+			int getHorizontal = std::min(srHeight, target.column - widthOffset + 1);
 
 			safeAPIcall(cudaMemcpy(devRow, secondReversed + readOffset,
 					getHorizontal * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
@@ -178,6 +183,11 @@ void Crosspointer::doPadding(char *devPtr, int get) {
 			cudaMemcpyHostToDevice), __LINE__);
 }
 
+void Crosspointer::doPaddingForLast(char *devPtr, int get) {
+	safeAPIcall(cudaMemcpy(devPtr + get, padLast, (srHeight - get) * sizeof(char),
+				cudaMemcpyHostToDevice), __LINE__);
+}
+
 bool Crosspointer::findXtoFirstSR() {
 	openSRFile();
 
@@ -192,7 +202,7 @@ bool Crosspointer::findXtoFirstSR() {
 	//printf("widthOff = %d, ts = %d\n", widthOffset, target.column);
 
 	while(widthOffset < target.column) {
-		int getHorizontal = std::min(srHeight - verticalPadding, target.column - widthOffset);
+		int getHorizontal = std::min(srHeight - verticalPadding, target.column - widthOffset + 1);
 		//printf("srh = %d, vp = %d, tc = %d, wo = %d\n", srHeight, verticalPadding, target.column, widthOffset);
 
 		safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
@@ -210,11 +220,12 @@ bool Crosspointer::findXtoFirstSR() {
 
 		safeAPIcall(cudaMemcpy(vBusOut, devVBusOut, srHeight * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
 
+		/*
 		FILE *tmp = fopen("temp/vbusout.txt", "a");
 		for(int i = 0; i < getHorizontal; i++) {
 			fprintf(tmp, "%d %d\n", (vBusOut + i)->x, (vBusOut + i)->y);
 		}
-		fclose(tmp);
+		fclose(tmp);*/
 
 		//printf("sr[79] = %d %d\n", specialRow[79].x, specialRow[79].y);
 
@@ -260,30 +271,24 @@ void Crosspointer::findStartX() {
 
 	TracebackScore *devLast = (TracebackScore *) cudaGetSpaceAndSet(lastSize, -1);
 
-	char padLastRows[240];
-	memset(padLastRows, STAGE_2_PADDING_LAST_ROWS, 240);
-
 	int getVertical = std::min(srHeight, target.row + 1);
-	printf("getV = %d, srh = %d\n", getVertical, srHeight);
-	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
-	    		getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
+	int verticalPadding = srHeight - getVertical;
+	//printf("getV = %d, vp = %d\n", getVertical, verticalPadding);
 
-	for(int i = getVertical; i < srHeight - getVertical; i += 240) {
-				safeAPIcall(cudaMemcpy(devColumn + i, padLastRows,
-						std::min(srHeight - i, 240) * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
-	}
+	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
+			getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
+
+	if(getVertical < srIndex) doPadding(devColumn, getVertical);
 
 	bool found = false;
 
 	while(widthOffset < target.column) {
 		int getHorizontal = std::min(srHeight, target.column - widthOffset + 1);
+
 		safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
 				getHorizontal * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
-		for(int i = getHorizontal; i < srHeight - getHorizontal; i += 240) {
-			safeAPIcall(cudaMemcpy(devRow + i, pad,
-					std::min(srHeight - i, 240) * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
-		}
+		if(getHorizontal < srHeight) doPaddingForLast(devRow, getHorizontal);
 
 		for(int dk = 0; dk < D + stdLaunchConfig.blocks; dk++) {
 			//kernel call
@@ -307,8 +312,6 @@ void Crosspointer::findStartX() {
 		widthOffset += getHorizontal;
 		initVBusOffset += getHorizontal;
 	}
-
-	initVBusOffset = 0;
 
 	free(last);
 	safeAPIcall(cudaFree(devLast), __LINE__);

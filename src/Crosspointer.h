@@ -39,6 +39,7 @@ private:
 	bool gap;
 	int2 *specialRow;
 	char *pad;
+	char *padLast;
 	int D;
 	int readOffset;
 	int heightOffset;
@@ -54,6 +55,7 @@ private:
 	void prepareFileName();
 	bool foundLast(TracebackScore *last);
 	void doPadding(char *devPtr, int get);
+	void doPaddingForLast(char *devPtr, int get);
 	void openSRFile();
 
 public:
