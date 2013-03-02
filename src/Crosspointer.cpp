@@ -98,6 +98,7 @@ void Crosspointer::openSRFile() {
 
 std::vector<TracebackScore> Crosspointer::findCrosspoints() {
 	doStage2Cross();
+	std::reverse(xPoints.begin(), xPoints.end());
 	return xPoints;
 }
 
@@ -107,11 +108,14 @@ void Crosspointer::doStage2Cross() {
 }
 
 void Crosspointer::findXonSpecRows() {
-	printf("Starting spec row X\n");
-	while(srIndex <= 0) {
+	printf("Starting spec row X with target [%d, %d]=%d\n", target.row, target.column, target.score);
+	while(srIndex > 0) {
 		openSRFile();
 
 		int getVertical = srHeight;
+
+		printf("getV = %d, sri = %d\n", getVertical, srIndex);
+		printf("sr[sri] = %d %d\n", specialRow[srIndex].x, specialRow[srIndex].y);
 
 		safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 				getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
@@ -120,7 +124,7 @@ void Crosspointer::findXonSpecRows() {
 		while(widthOffset < target.column) {
 			int getHorizontal = std::min(srHeight, target.column - widthOffset);
 
-			safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
+			safeAPIcall(cudaMemcpy(devRow, secondReversed + readOffset,
 					getHorizontal * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
 
 			if(getHorizontal < srHeight) doPadding(devRow, getHorizontal);
@@ -133,6 +137,7 @@ void Crosspointer::findXonSpecRows() {
 
 			safeAPIcall(cudaMemcpy(vBusOut, devVBusOut, srHeight * sizeof(int2), cudaMemcpyDeviceToHost), __LINE__);
 
+			printf("offset calc: tc = %d, wo = %d, geth = %d\n", target.column, widthOffset, getHorizontal);
 			TracebackScore tracebackScore = getTracebackScore(
 					*values, srIndex, getHorizontal, vBusOut,
 					specialRow + target.column - widthOffset - getHorizontal,
@@ -150,6 +155,10 @@ void Crosspointer::findXonSpecRows() {
 
 				srIndex -= srHeight;
 				heightOffset += getVertical;
+				readOffset += getVertical;
+
+				initVBusOffset = 0;
+				widthOffset = 0;
 
 				found = true;
 				break;
@@ -158,6 +167,7 @@ void Crosspointer::findXonSpecRows() {
 
 		reInitHBuffer();
 		initVBusOffset = 0;
+		widthOffset = 0;
 
 		if(widthOffset >= target.column) return;
 	}
@@ -173,7 +183,7 @@ bool Crosspointer::findXtoFirstSR() {
 
 	int getVertical = target.row - srIndex;
 	int verticalPadding = srHeight - getVertical;
-	printf("getV = %d, vp = %d\n", getVertical, verticalPadding);
+	//printf("getV = %d, vp = %d\n", getVertical, verticalPadding);
 
 	safeAPIcall(cudaMemcpy(devColumn, firstReversed + heightOffset,
 			getVertical * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
@@ -183,7 +193,7 @@ bool Crosspointer::findXtoFirstSR() {
 
 	while(widthOffset < target.column) {
 		int getHorizontal = std::min(srHeight - verticalPadding, target.column - widthOffset);
-		printf("srh = %d, vp = %d, tc = %d, wo = %d\n", srHeight, verticalPadding, target.column, widthOffset);
+		//printf("srh = %d, vp = %d, tc = %d, wo = %d\n", srHeight, verticalPadding, target.column, widthOffset);
 
 		safeAPIcall(cudaMemcpy(devRow, secondReversed + widthOffset,
 				getHorizontal * sizeof(char), cudaMemcpyHostToDevice), __LINE__);
@@ -206,9 +216,7 @@ bool Crosspointer::findXtoFirstSR() {
 		}
 		fclose(tmp);
 
-		printf("sr[79] = %d %d\n", specialRow[79].x, specialRow[79].y);
-		int2 *ptr = specialRow + target.column - widthOffset - getHorizontal;
-		printf("sr[79] = %d %d\n", ptr->x, ptr->y);
+		//printf("sr[79] = %d %d\n", specialRow[79].x, specialRow[79].y);
 
 		TracebackScore tracebackScore = getTracebackScore(
 				*values, srIndex, getHorizontal, vBusOut,
@@ -227,7 +235,9 @@ bool Crosspointer::findXtoFirstSR() {
 
 			srIndex -= srHeight;
 			heightOffset += getVertical;
+			readOffset += getVertical;
 			initVBusOffset = 0;
+			widthOffset = 0;
 
 			reInitHBuffer();
 

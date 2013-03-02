@@ -180,7 +180,7 @@ TracebackScore getTracebackScore(scoring values, int row, int cols,
 
 	//printf("target = %d, absColIdx = %d, row = %d, rows = %d, cols = %d\n",
 		//	targetScore, absColIdx, row, rows, cols);
-	printf("SR0 = %d\n", specialRow[0].x);
+	//printf("SR0 = %d\n", specialRow[0].x);
 	TracebackScore score;
 
 	int sRowIdx, vBusIdx;
@@ -199,10 +199,10 @@ TracebackScore getTracebackScore(scoring values, int row, int cols,
 
 		int isScrAff = (rScore == rAffine) && (bScore == bAffine);
 
-		if(targetScore - scr < 100) {
+		if(targetScore - scr < 15) {
 			printf("Diff scr %d, target = %d, rS = %d, bS = %d\n", targetScore - scr, targetScore, rScore, bScore);
 		}
-		if(targetScore - aff < 100) {
+		if(targetScore - aff < 15) {
 			printf("Diff aff %d\n", targetScore - aff);
 		}
 

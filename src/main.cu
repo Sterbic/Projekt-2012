@@ -242,6 +242,11 @@ int main(int argc, char *argv[]) {
     xPoints = xPointer.findCrosspoints();
     printf("DONE\n\n");
 
+    printf("Found %d crosspoints:\n", (int) xPoints.size());
+    for(int i = 0; i < xPoints.size(); ++i) {
+    	printf("\t>xPoint[%d]: [%d, %d] = %d\n", i, xPoints[i].row, xPoints[i].column, xPoints[i].score);
+    }
+
 	//######################## traceback - old #################################
     /*
     HorizontalBuffer hBuffer;
